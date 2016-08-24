@@ -1,0 +1,29 @@
+  -- _tar <- tar
+  -- stdout _tar
+  -- putStrLn $ (show r)
+  -- stdout $ inproc "gpg" ["--passphrase-fd", Data.Text.pack (show r), "--symmetric", "--batch", "--output", "encrypted.gpg"] _tar
+  -- proc "gpg" ["--passphrase", "helloworld", "--symmetric", "--batch", "--output", "encrypted.gpg"] _tar
+
+  -- x <- tar
+  -- y <- x
+  -- case y of
+  --   ExitSuccess -> return ()
+  --   ExitFailure n -> die ("failed " <> repr n)
+  return ()
+  -- return ()
+  -- stdout $ inproc "tar" ["-r", "-f", "./foo.tar", Data.Text.pack (home ++ "/Files/books")] Turtle.empty
+  -- getHomeDirectory >>= putStrLn
+  -- cd "~/Projects/git-stuff"
+
+
+-- main :: IO ()
+-- main = do
+--   (status, output) <- shellStrict "brew list --versions" Turtle.empty
+--   putStrLn $ show $ Prelude.map (splitOn " ") $ splitOn "\n" output
+-- import System.FilePath
+
+
+-- tar :: IO ()
+-- tar = do
+
+tar -r -f ./foo.tar ~/Files/books/
