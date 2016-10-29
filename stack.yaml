@@ -1,5 +1,9 @@
 flags: {}
 packages:
 - '.'
-extra-deps: []
+- location:
+    git: git@github.com:Gabriel439/Haskell-Turtle-Library
+    commit: 70ce730bd757e3342e972a59cea42654a0d23810
+  extra-dep: true
+extra-deps: [managed-1.0.5]
 resolver: lts-3.1
