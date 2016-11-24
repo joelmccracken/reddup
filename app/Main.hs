@@ -4,49 +4,66 @@ module Main where
 
 import Lib
 
-import Turtle
+import Turtle hiding ((<|>))
 import Data.Text
 import System.Directory
 import System.Posix.IO
 import Prelude hiding (FilePath)
 import System.IO
+import Text.ParserCombinators.Parsec as Parsec
 
--- parser :: Parser (FilePath, FilePath)
--- parser = (,) <$> argPath "src" "the source file"
---              <*> argPath "dest" "the destination file"
+data GitStatusType
+  = Staged Text
+  | Unstaged Text
+  | Untracked Text
+  | Unknown Text
+  deriving (Show)
 
+gitStatusLineParser :: Parsec.Parser GitStatusType
+gitStatusLineParser = do
+  parseUntracked
+    <|> parseStaged
+    <|> parseUnstaged
+    <|> parseUnknown
 
-data BackupConfigOption =
-  Directory String
-  deriving (Show, Read)
+parseUntracked :: Parsec.Parser GitStatusType
+parseUntracked = do
+  string "??"
+  value <- parseValueAfterLabel
+  return $ Untracked (fromString value)
 
+parseStaged = do
+  string "M "
+  value <- parseValueAfterLabel
+  return $ Staged (fromString value)
+
+parseUnstaged = do
+  string " M"
+  value <- parseValueAfterLabel
+  return $ Unstaged (fromString value)
+
+parseUnknown = do
+  wholeLine <- Parsec.many Parsec.anyChar
+  return $ Unknown (fromString wholeLine)
+
+parseValueAfterLabel = do
+  Parsec.space
+  Parsec.many Parsec.anyChar
+
+parseGitStatusLine :: Turtle.Line -> Either ParseError GitStatusType
+parseGitStatusLine line =
+  parse gitStatusLineParser "git status --porcelain" ((unpack . lineToText) line)
+
+gitStatus :: Shell (Either ParseError GitStatusType)
+gitStatus = do
+  let statusStream = inshell "git status --porcelain" Turtle.empty
+  fmap parseGitStatusLine statusStream
 
 main :: IO ()
 main = do
-  -- (src, dest) <- options "a simple `cp` script" parser
   home <- getHomeDirectory
-
-  handle <- openFile (home ++ "/haskell-backup.hsd") ReadMode
-  contents <- hGetContents handle
-  return ((read contents)::[BackupConfigOption])
-
-  (r, w) <- createPipe
-  fdWrite w "HITHERE\n"
-  closeFd w
-
-
-
-
-  home <- getHomeDirectory
-  shell (
-    intercalate " "
-      [
-        "tar", "-c", Data.Text.pack (home ++ "/Files/books"),
-        "|",
-        "gpg",
-        "--passphrase-fd", Data.Text.pack (show r),
-        "--symmetric", "--batch",
-        "--output", "encrypted.gpg"
-      ]
-    ) Turtle.empty
+  let dirname = fromString (home ++ "/EF/")
+  cd dirname
+  let status = gitStatus
+  view status
   return ()
