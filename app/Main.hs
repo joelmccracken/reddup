@@ -17,7 +17,7 @@ data GitStatusType
 
 data Trackable
   = Git Turtle.FilePath
-  | InboxDir
+  | InboxDir Turtle.FilePath
   deriving (Show)
 
 gitStatusLineParser :: Parsec.Parser GitStatusType
@@ -75,7 +75,7 @@ trackables homeDir =
 directoriesToCheck :: Shell [Trackable]
 directoriesToCheck = do
   homeDir <- liftIO $ getHomeDirectory
-  return $ trackables homeDir ++ [InboxDir]
+  return $ trackables homeDir ++ [InboxDir ""]
 
 handleTrackable :: Trackable -> Shell ()
 handleTrackable (Git dir) = do
@@ -85,7 +85,7 @@ handleTrackable (Git dir) = do
   view status
   return ()
 
-handleTrackable (InboxDir) = do
+handleTrackable (InboxDir _) = do
   return ()
 
 main :: IO ()
