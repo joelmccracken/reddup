@@ -59,11 +59,25 @@ gitStatus = do
   let statusStream = inshell "git status --porcelain" Turtle.empty
   fmap parseGitStatusLine statusStream
 
+thingy :: String -> [Turtle.FilePath]
+thingy home =
+  Prelude.map fromString
+    [ home ++ "/EF/"
+    , home ++ "/Reference/"
+    , home ++ "/Projects/git-stuff/"
+    ]
+
+directoriesToCheck :: Shell [Turtle.FilePath]
+directoriesToCheck = do
+  home <- liftIO $ getHomeDirectory
+  return $ thingy home
+
 main :: IO ()
-main = do
-  home <- getHomeDirectory
-  let dirname = fromString (home ++ "/EF/")
-  cd dirname
+main = sh (do
+  dirs <- directoriesToCheck
+  dir <- select dirs
+  liftIO $ putStrLn $ "checking " ++ show dir
+  cd dir
   let status = gitStatus
   view status
-  return ()
+  return ())
