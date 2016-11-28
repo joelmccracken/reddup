@@ -64,18 +64,22 @@ gitStatus = do
   let statusStream = inshell "git status --porcelain" Turtle.empty
   fmap parseGitStatusLine statusStream
 
-trackables :: String -> [Trackable]
-trackables homeDir =
+gitTrackables :: String -> [Trackable]
+gitTrackables homeDir =
   Prelude.map (Git . fromString)
     [ homeDir ++ "/EF/"
     , homeDir ++ "/Reference/"
     , homeDir ++ "/Projects/git-stuff/"
     ]
 
+inboxTrackables :: String -> [Trackable]
+inboxTrackables homeDir =
+  [ InboxDir . fromString $ homeDir ++ "/Inbox/" ]
+
 directoriesToCheck :: Shell [Trackable]
 directoriesToCheck = do
   homeDir <- liftIO $ getHomeDirectory
-  return $ trackables homeDir ++ [InboxDir ""]
+  return $ gitTrackables homeDir ++ inboxTrackables homeDir
 
 handleTrackable :: Trackable -> Shell ()
 handleTrackable (Git dir) = do
@@ -85,7 +89,11 @@ handleTrackable (Git dir) = do
   view status
   return ()
 
-handleTrackable (InboxDir _) = do
+handleTrackable (InboxDir dir) = do
+  liftIO $ putStrLn $ "checking " ++ show dir
+  cd dir
+  let status = ls "."
+  view status
   return ()
 
 main :: IO ()
