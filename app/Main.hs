@@ -25,7 +25,6 @@ gitStatusLineParser = do
   parseUntracked
     <|> parseStaged
     <|> parseUnstaged
-    <|> parseUnknown
 
 parseUntracked :: Parsec.Parser GitStatusType
 parseUntracked = do
@@ -45,21 +44,21 @@ parseUnstaged = do
   value <- parseValueAfterLabel
   return $ Unstaged (fromString value)
 
-parseUnknown :: Parsec.Parser GitStatusType
-parseUnknown = do
-  wholeLine <- Parsec.many Parsec.anyChar
-  return $ Unknown (fromString wholeLine)
-
 parseValueAfterLabel :: Parsec.Parser String
 parseValueAfterLabel = do
   _ <- Parsec.space
   Parsec.many Parsec.anyChar
 
-parseGitStatusLine :: Turtle.Line -> Either ParseError GitStatusType
+parseGitStatusLine :: Turtle.Line -> GitStatusType
 parseGitStatusLine line =
-  parse gitStatusLineParser "git status --porcelain" ((unpack . lineToText) line)
+  let
+    parsed = parse gitStatusLineParser "git status --porcelain" ((unpack . lineToText) line)
+  in
+    case parsed of
+      Left _ -> Unknown (lineToText line)
+      Right x -> x
 
-gitStatus :: Shell (Either ParseError GitStatusType)
+gitStatus :: Shell GitStatusType
 gitStatus = do
   let statusStream = inshell "git status --porcelain" Turtle.empty
   fmap parseGitStatusLine statusStream
