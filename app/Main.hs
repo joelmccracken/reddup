@@ -9,7 +9,7 @@ import Turtle
 import Git
 
 data Trackable
-  = Git Turtle.FilePath
+  = GitRepo Turtle.FilePath
   | InboxDir Turtle.FilePath
   deriving (Show)
 
@@ -31,7 +31,7 @@ gitDirectoriesConfig :: [Text] -> Shell Trackable
 gitDirectoriesConfig dirs = do
   repoDir <- select dirs
   path <- expandGlob repoDir
-  return $ (Git . fromText . lineToText $ path)
+  return $ (GitRepo . fromText . lineToText $ path)
 
 inboxDirectoriesConfig :: [Text] -> Shell Trackable
 inboxDirectoriesConfig dirs = do
@@ -44,7 +44,7 @@ expandGlob x =
   inshell (concat ["for f in ", x, "; do echo $f; done"] ) Turtle.empty
 
 handleTrackable :: Trackable -> Shell ()
-handleTrackable (Git dir) = do
+handleTrackable (GitRepo dir) = do
   liftIO $ putStrLn $ "checking " ++ show dir
   cd dir
   dirExists <- testdir ".git"
