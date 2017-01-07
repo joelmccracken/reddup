@@ -36,6 +36,7 @@ executable git-stuff-exe
                      , unix >= 2.7.1
                      , parsec
   default-language:    Haskell2010
+  other-modules: Git
 
 test-suite git-stuff-test
   type:                exitcode-stdio-1.0
@@ -48,4 +49,4 @@ test-suite git-stuff-test
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/git-stuff
+  location: https://github.com/joelmccracken/git-stuff
