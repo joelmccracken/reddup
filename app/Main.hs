@@ -2,10 +2,10 @@
 
 module Main where
 
-import Data.Text
+import Data.Text hiding (empty)
 import System.Directory
-import Prelude hiding (FilePath)
-import Turtle hiding ((<|>))
+import Prelude hiding (FilePath, concat, empty)
+import Turtle
 import Git
 
 data Trackable
@@ -13,37 +13,35 @@ data Trackable
   | InboxDir Turtle.FilePath
   deriving (Show)
 
-gitTrackables :: [String] -> [Trackable]
-gitTrackables directories =
-  Prelude.map gitTrackable directories
-
-gitTrackable :: String -> Trackable
-gitTrackable = Git . fromString
-
-
-inboxTrackables :: [String] -> [Trackable]
-inboxTrackables = Prelude.map inboxTrackable
-
-inboxTrackable :: String -> Trackable
-inboxTrackable = InboxDir . fromString
-
-directoriesToCheck :: Shell [Trackable]
-directoriesToCheck = do
-  homeDir <- liftIO $ getHomeDirectory
-  return $ directoriesConfig homeDir
-
-directoriesConfig homeDir =
+directoriesConfig :: Shell Trackable
+directoriesConfig = do
   let
-    toHomeDir = Prelude.map (homeDir ++)
-    gitRepos =
-      toHomeDir [ "/EF/"
-                , "/Reference/"
-                , "/Projects/git-stuff/"
-                ]
-    inboxDirs =
-      toHomeDir [ "/Inbox", "/Desktop" ]
-  in
-    gitTrackables gitRepos ++ inboxTrackables inboxDirs
+    gitRepos = [ "~/EF"
+               , "~/Reference"
+               , "~/Projects/*"
+               ]
+    inboxDirs = [ "~/Inbox",
+                  "~/Desktop" ]
+
+    in do
+      gitDirectoriesConfig gitRepos
+        <|> inboxDirectoriesConfig inboxDirs
+
+gitDirectoriesConfig :: [Text] -> Shell Trackable
+gitDirectoriesConfig dirs = do
+  repoDir <- select dirs
+  path <- expandGlob repoDir
+  return $ (Git . fromText . lineToText $ path)
+
+inboxDirectoriesConfig :: [Text] -> Shell Trackable
+inboxDirectoriesConfig dirs = do
+  repoDir <- select dirs
+  path <- expandGlob repoDir
+  return $ (InboxDir . fromText . lineToText $ path)
+
+expandGlob :: Text -> Shell Line
+expandGlob x =
+  inshell (concat ["for f in ", x, "; do echo $f; done"] ) Turtle.empty
 
 handleTrackable :: Trackable -> Shell ()
 handleTrackable (Git dir) = do
@@ -70,7 +68,6 @@ checkGitStatus = do
 
 main :: IO ()
 main = sh (do
-  trackables_ <- directoriesToCheck
-  trackable <- select trackables_
+  trackable <- directoriesConfig
   handleTrackable trackable
   )
