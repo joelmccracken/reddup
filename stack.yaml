@@ -7,3 +7,5 @@ packages:
   extra-dep: true
 extra-deps: [managed-1.0.5]
 resolver: lts-3.1
+ghc-options:
+  "*": -Wall
