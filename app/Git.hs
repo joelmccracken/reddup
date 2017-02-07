@@ -5,8 +5,12 @@ module Git where
 import Text.ParserCombinators.Parsec as Parsec
 import Data.Text
 import Turtle hiding ((<|>))
-import System.Directory
 import Prelude hiding (FilePath)
+
+
+data GitBranchType
+  = GitBranch Text
+  deriving (Show)
 
 data GitStatusType
   = Staged Text
@@ -51,9 +55,33 @@ parseGitStatusLine line =
   in
     case parsed of
       Left _ -> Unknown (lineToText line)
-      Right x -> x
+      Right value -> value
+
+gitBranchLineParser :: Parsec.Parser GitBranchType
+gitBranchLineParser =
+  let
+    spacesThenAnything = (Parsec.spaces >> Parsec.many Parsec.anyChar)
+    branchNameParser = (string "*" >> spacesThenAnything)
+             <|> spacesThenAnything
+  in do
+    name <- branchNameParser
+    return $ GitBranch (fromString name)
+
+parseGitBranchLine :: Turtle.Line -> GitBranchType
+parseGitBranchLine line =
+  let
+    parsed = parse gitBranchLineParser "git branch" ((unpack . lineToText) line)
+  in
+    case parsed of
+      Left _ -> GitBranch (lineToText line)
+      Right value -> value
 
 gitStatus :: Shell GitStatusType
 gitStatus = do
   let statusStream = inshell "git status --porcelain" Turtle.empty
   fmap parseGitStatusLine statusStream
+
+gitBranches :: Shell GitBranchType
+gitBranches = do
+  let branchStream = inshell "git branch" Turtle.empty
+  fmap parseGitBranchLine branchStream

@@ -3,8 +3,7 @@
 module Main where
 
 import Data.Text hiding (empty)
-import System.Directory
-import Prelude hiding (FilePath, concat, empty)
+import Prelude hiding (FilePath, concat)
 import Turtle
 import Git
 
@@ -19,10 +18,11 @@ directoriesConfig = do
     gitRepos = [ "~/EF"
                , "~/Reference"
                , "~/Projects/*"
+               , "~/ttm/apangea"
                ]
     inboxDirs = [ "~/Inbox",
-                  "~/Desktop" ]
-
+                   "~/Desktop"
+                ]
     in do
       gitDirectoriesConfig gitRepos
         <|> inboxDirectoriesConfig inboxDirs
@@ -40,8 +40,8 @@ inboxDirectoriesConfig dirs = do
   return $ (InboxDir . fromText . lineToText $ path)
 
 expandGlob :: Text -> Shell Line
-expandGlob x =
-  inshell (concat ["for f in ", x, "; do echo $f; done"] ) Turtle.empty
+expandGlob glob =
+  inshell (concat ["for f in ", glob, "; do echo $f; done"] ) Turtle.empty
 
 handleTrackable :: Trackable -> Shell ()
 handleTrackable (GitRepo dir) = do
@@ -65,6 +65,8 @@ checkGitStatus :: IO ()
 checkGitStatus = do
   let status = gitStatus
   view status
+  let branches = gitBranches
+  view branches
 
 main :: IO ()
 main = sh $ do
