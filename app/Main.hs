@@ -67,7 +67,6 @@ checkGitStatus = do
   view status
 
 main :: IO ()
-main = sh (do
+main = sh $ do
   trackable <- directoriesConfig
   handleTrackable trackable
-  )
