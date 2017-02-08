@@ -5,8 +5,8 @@ module Git where
 import Text.ParserCombinators.Parsec as Parsec
 import Data.Text
 import Turtle hiding ((<|>))
-import Prelude hiding (FilePath)
-
+import Prelude hiding (FilePath, concat)
+import qualified Control.Foldl as Fold
 
 data GitBranchType
   = GitBranch Text
@@ -85,3 +85,17 @@ gitBranches :: Shell GitBranchType
 gitBranches = do
   let branchStream = inshell "git branch" Turtle.empty
   fmap parseGitBranchLine branchStream
+
+lengthOfOutput :: Shell Turtle.Line -> Shell Int
+lengthOfOutput cmd = Turtle.fold cmd Fold.length
+
+remoteBranchContainsBranch :: GitBranchType -> Shell Bool
+remoteBranchContainsBranch (GitBranch name) = do
+  let command = inshell (concat ["git branch -r --contains ", name]) Turtle.empty
+  len <- lengthOfOutput command
+  return $ len > 0
+
+unpushedGitBranches :: Shell GitBranchType
+unpushedGitBranches = do
+  let branches = gitBranches
+  mfilter remoteBranchContainsBranch branches
