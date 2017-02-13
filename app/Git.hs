@@ -95,7 +95,13 @@ remoteBranchContainsBranch (GitBranch name) = do
   len <- lengthOfOutput command
   return $ len > 0
 
+mfilter' :: (MonadPlus m) => (a -> m Bool) -> m a -> m a
+mfilter' mp ma = do
+  a <- ma
+  p <- mp a
+  if p then return a else mzero
+
 unpushedGitBranches :: Shell GitBranchType
 unpushedGitBranches = do
   let branches = gitBranches
-  mfilter remoteBranchContainsBranch branches
+  mfilter' remoteBranchContainsBranch branches
