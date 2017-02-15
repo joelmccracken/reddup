@@ -65,8 +65,12 @@ checkGitStatus :: IO ()
 checkGitStatus = do
   let status = gitStatus
   view status
-  let branches = gitBranches
-  view branches
+  let unpushedBranches = unpushedGitBranches
+  stdout $ fmap unsafeTextToLine $ fmap viewGitBranchAsUnpushed unpushedBranches
+
+viewGitBranchAsUnpushed :: GitBranchType -> Text
+viewGitBranchAsUnpushed (GitBranch name) =
+  Data.Text.append "Unpushed: " name
 
 main :: IO ()
 main = sh $ do

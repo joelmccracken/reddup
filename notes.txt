@@ -13,7 +13,7 @@
   -- return ()
   -- stdout $ inproc "tar" ["-r", "-f", "./foo.tar", Data.Text.pack (home ++ "/Files/books")] Turtle.empty
   -- getHomeDirectory >>= putStrLn
-  -- cd "~/Projects/git-stuff"
+  -- cd "~/Projects/reddup"
 
 
 -- main :: IO ()
@@ -58,7 +58,7 @@ tar -r -f ./foo.tar ~/Files/books/
 -- ["LICENSE"]
 -- ["Setup","hs"]
 -- ["app"]
--- ["git-stuff","cabal"]
+-- ["reddup","cabal"]
 -- ["notes","txt"]
 -- ["src"]
 -- ["stack","yaml"]

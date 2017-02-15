@@ -104,4 +104,4 @@ mfilter' mp ma = do
 unpushedGitBranches :: Shell GitBranchType
 unpushedGitBranches = do
   let branches = gitBranches
-  mfilter' remoteBranchContainsBranch branches
+  mfilter' ((fmap not) . remoteBranchContainsBranch) branches
