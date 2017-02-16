@@ -96,13 +96,13 @@ remoteBranchContainsBranch (GitBranch name) = do
   len <- lengthOfOutput command
   return $ len > 0
 
-hasBranch :: Shell GitBranchType -> GitBranchType -> Shell GitBranchType
-hasBranch accum next = do
-  branchFound <- remoteBranchContainsBranch next
-  if branchFound then
-    accum <> return next
-  else
+withoutRemote :: Shell GitBranchType -> GitBranchType -> Shell GitBranchType
+withoutRemote accum next = do
+  remoteFound <- remoteBranchContainsBranch next
+  if remoteFound then
     accum
+  else
+    accum <> return next
 
 unpushedGitBranches :: Shell GitBranchType
-unpushedGitBranches = join $ fold gitBranches $ Fold hasBranch mzero id
+unpushedGitBranches = join $ fold gitBranches $ Fold withoutRemote mzero id
