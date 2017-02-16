@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Git where
 
@@ -10,7 +11,7 @@ import qualified Control.Foldl as Fold
 
 data GitBranchType
   = GitBranch Text
-  deriving (Show)
+  deriving (Show, Monoid)
 
 data GitStatusType
   = Staged Text
@@ -95,13 +96,13 @@ remoteBranchContainsBranch (GitBranch name) = do
   len <- lengthOfOutput command
   return $ len > 0
 
-mfilter' :: (MonadPlus m) => (a -> m Bool) -> m a -> m a
-mfilter' mp ma = do
-  a <- ma
-  p <- mp a
-  if p then return a else mzero
+hasBranch :: Shell GitBranchType -> GitBranchType -> Shell GitBranchType
+hasBranch accum next = do
+  branchFound <- remoteBranchContainsBranch next
+  if branchFound then
+    accum <> return next
+  else
+    accum
 
 unpushedGitBranches :: Shell GitBranchType
-unpushedGitBranches = do
-  let branches = gitBranches
-  mfilter' ((fmap not) . remoteBranchContainsBranch) branches
+unpushedGitBranches = join $ fold gitBranches $ Fold hasBranch mzero id
