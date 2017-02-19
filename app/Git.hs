@@ -35,7 +35,7 @@ withoutRemote accum next = do
   if remoteFound then
     accum
   else
-    accum <> return next
+    accum <|> return next
 
 unpushedGitBranches :: Shell GitBranchType
 unpushedGitBranches = join $ fold gitBranches $ Fold withoutRemote mzero id
