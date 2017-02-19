@@ -38,7 +38,8 @@ executable reddup
                      , parsec
                      , foldl >= 1.2.1
   default-language:    Haskell2010
-  other-modules: Git
+  other-modules:       Git
+                     , GitParse
 
 test-suite reddup-test
   type:                exitcode-stdio-1.0

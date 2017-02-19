@@ -6,6 +6,7 @@ import Data.Text hiding (empty)
 import Prelude hiding (FilePath, concat)
 import Turtle
 import Git
+import GitParse
 
 data Trackable
   = GitRepo Turtle.FilePath
