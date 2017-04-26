@@ -7,6 +7,8 @@ import Prelude hiding (FilePath, concat)
 import Turtle
 import Git
 import GitParse
+import qualified Config
+import qualified ShellUtil
 
 data Trackable
   = GitRepo Turtle.FilePath
@@ -22,7 +24,7 @@ directoriesConfig = do
                , "~/ttm/apangea"
                ]
     inboxDirs = [ "~/Inbox",
-                   "~/Desktop"
+                  "~/Desktop"
                 ]
     in do
       gitDirectoriesConfig gitRepos
@@ -31,18 +33,14 @@ directoriesConfig = do
 gitDirectoriesConfig :: [Text] -> Shell Trackable
 gitDirectoriesConfig dirs = do
   repoDir <- select dirs
-  path <- expandGlob repoDir
+  path <- ShellUtil.expandGlob repoDir
   return $ (GitRepo . fromText . lineToText $ path)
 
 inboxDirectoriesConfig :: [Text] -> Shell Trackable
 inboxDirectoriesConfig dirs = do
   repoDir <- select dirs
-  path <- expandGlob repoDir
+  path <- ShellUtil.expandGlob repoDir
   return $ (InboxDir . fromText . lineToText $ path)
-
-expandGlob :: Text -> Shell Line
-expandGlob glob =
-  inshell (concat ["for f in ", glob, "; do echo $f; done"] ) Turtle.empty
 
 handleTrackable :: Trackable -> Shell ()
 handleTrackable (GitRepo dir) = do
@@ -75,5 +73,6 @@ viewGitBranchAsUnpushed (GitBranch name) =
 
 main :: IO ()
 main = sh $ do
-  trackable <- directoriesConfig
-  handleTrackable trackable
+  config <- liftIO Config.loadConfig
+  -- trackable <- directoriesConfig
+  -- handleTrackable trackable

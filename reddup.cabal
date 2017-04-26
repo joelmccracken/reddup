@@ -42,6 +42,8 @@ executable reddup
   default-language:    Haskell2010
   other-modules:       Git
                      , GitParse
+                     , Config
+                     , ShellUtil
 
 test-suite reddup-test
   type:                exitcode-stdio-1.0
