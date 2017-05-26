@@ -9,6 +9,7 @@ import Git
 import GitParse
 import qualified Config
 import qualified ShellUtil
+import qualified System.IO
 
 data Trackable
   = GitRepo Turtle.FilePath
@@ -71,8 +72,16 @@ viewGitBranchAsUnpushed :: GitBranchType -> Text
 viewGitBranchAsUnpushed (GitBranch name) =
   Data.Text.append "Unpushed: " name
 
+-- parseErrorToConfigErrorAndExit :: IO -> IO Config.Config
+-- parseErrorToConfigErrorAndExit String =
+--   either (System.IO.hPutStrLn System.IO.stderr ("error parsing config: " <>)) return config
+
+-- configToTrackable :: String -> IO Config.Config
+-- configToTrackable config =
+--   either (System.IO.hPutStrLn System.IO.stderr ("error parsing config: " <>)) return config
+
 main :: IO ()
 main = sh $ do
   config <- liftIO Config.loadConfig
-  -- trackable <- directoriesConfig
-  -- handleTrackable trackable
+  -- handleTrackable $ configToTrackable config
+  liftIO $ putStrLn "poop"

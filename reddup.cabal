@@ -24,6 +24,8 @@ library
                      , parsec
                      , foldl >= 1.2.1
                      , yaml >= 0.8.22
+                     , bytestring >= 0.10.6
+                     , raw-strings-qq
   default-language:    Haskell2010
 
 executable reddup
@@ -39,6 +41,8 @@ executable reddup
                      , parsec
                      , foldl >= 1.2.1
                      , yaml >= 0.8.22
+                     , bytestring >= 0.10.6
+                     , raw-strings-qq
   default-language:    Haskell2010
   other-modules:       Git
                      , GitParse
