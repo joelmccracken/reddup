@@ -11,6 +11,8 @@ import qualified Config
 import qualified ShellUtil
 import qualified System.IO
 
+-- import System.Exit
+
 data Trackable
   = GitRepo Turtle.FilePath
   | InboxDir Turtle.FilePath
@@ -43,6 +45,11 @@ inboxDirectoriesConfig dirs = do
   path <- ShellUtil.expandGlob repoDir
   return $ (InboxDir . fromText . lineToText $ path)
 
+
+handleTrackables :: [Trackable] -> Shell ()
+handleTrackables trackables = do
+  Prelude.foldl (>>) (return ()) (fmap handleTrackable trackables)
+
 handleTrackable :: Trackable -> Shell ()
 handleTrackable (GitRepo dir) = do
   liftIO $ putStrLn $ "checking " ++ show dir
@@ -73,15 +80,26 @@ viewGitBranchAsUnpushed (GitBranch name) =
   Data.Text.append "Unpushed: " name
 
 -- parseErrorToConfigErrorAndExit :: IO -> IO Config.Config
--- parseErrorToConfigErrorAndExit String =
+-- parseErrorToConfigErrorAndExit config =
 --   either (System.IO.hPutStrLn System.IO.stderr ("error parsing config: " <>)) return config
 
--- configToTrackable :: String -> IO Config.Config
--- configToTrackable config =
---   either (System.IO.hPutStrLn System.IO.stderr ("error parsing config: " <>)) return config
+extractConfig :: Either String Config.Config -> Shell Config.Config
+extractConfig eitherConfig =
+  let
+    doDie :: String -> Shell Config.Config
+    doDie errorMsg = die ("error parsing config: " <> (pack errorMsg))
+  in either doDie return eitherConfig
+
+configToTrackables :: Config.Config -> [Trackable]
+configToTrackables (Config.MkConfig { Config.locations = locations}) =
+  fmap locationSpecToTrackable locations
+
+locationSpecToTrackable :: Config.LocationSpec -> Trackable
+locationSpecToTrackable locSpec = undefined
 
 main :: IO ()
 main = sh $ do
-  config <- liftIO Config.loadConfig
-  -- handleTrackable $ configToTrackable config
-  liftIO $ putStrLn "poop"
+  eitherConfig <- liftIO Config.loadConfig
+  config <- extractConfig $ eitherConfig
+  handleTrackables $ configToTrackables config
+  liftIO $ putStrLn "done"

@@ -7,6 +7,8 @@ module Config where
 import qualified Data.Yaml as Y
 import Data.Yaml (FromJSON(..), (.:))
 import Control.Applicative
+import Data.Text hiding (empty)
+
 
 import Text.RawString.QQ
 import Data.ByteString (ByteString)
@@ -36,8 +38,8 @@ data Config =
 
 data LocationSpec =
   MkLocationSpec {
-    _type    :: String
-  , location :: String
+    _type    :: Text
+  , location :: Text
   } deriving (Eq, Show)
 
 -- (Y.decodeEither ("\nhave-fun: scooty dooty\ngit-directories:\n - foo") ) :: Either String Config
