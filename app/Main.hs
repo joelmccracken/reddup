@@ -14,8 +14,9 @@ import qualified System.IO
 -- import System.Exit
 
 data Trackable
-  = GitRepo Turtle.FilePath
+  = GitRepo  Turtle.FilePath
   | InboxDir Turtle.FilePath
+  | UnknownTrackable Text Turtle.FilePath
   deriving (Show)
 
 directoriesConfig :: Shell Trackable
@@ -45,10 +46,10 @@ inboxDirectoriesConfig dirs = do
   path <- ShellUtil.expandGlob repoDir
   return $ (InboxDir . fromText . lineToText $ path)
 
-
 handleTrackables :: [Trackable] -> Shell ()
 handleTrackables trackables = do
   Prelude.foldl (>>) (return ()) (fmap handleTrackable trackables)
+
 
 handleTrackable :: Trackable -> Shell ()
 handleTrackable (GitRepo dir) = do
@@ -60,6 +61,9 @@ handleTrackable (GitRepo dir) = do
   else
     liftIO $ putStrLn $ "ERROR IS NOT GIT REPO"
   return ()
+
+handleTrackable (UnknownTrackable _type dir) =
+  liftIO $ print $ ("warning: encountered unknown trackable definition" <> _type <> "at" <> (pack (show dir)))
 
 handleTrackable (InboxDir dir) = do
   liftIO $ putStrLn $ "checking " ++ show dir
@@ -79,10 +83,6 @@ viewGitBranchAsUnpushed :: GitBranchType -> Text
 viewGitBranchAsUnpushed (GitBranch name) =
   Data.Text.append "Unpushed: " name
 
--- parseErrorToConfigErrorAndExit :: IO -> IO Config.Config
--- parseErrorToConfigErrorAndExit config =
---   either (System.IO.hPutStrLn System.IO.stderr ("error parsing config: " <>)) return config
-
 extractConfig :: Either String Config.Config -> Shell Config.Config
 extractConfig eitherConfig =
   let
@@ -91,11 +91,15 @@ extractConfig eitherConfig =
   in either doDie return eitherConfig
 
 configToTrackables :: Config.Config -> [Trackable]
-configToTrackables (Config.MkConfig { Config.locations = locations}) =
+configToTrackables (Config.MkConfig { Config.locations = locations }) =
   fmap locationSpecToTrackable locations
 
 locationSpecToTrackable :: Config.LocationSpec -> Trackable
-locationSpecToTrackable locSpec = undefined
+locationSpecToTrackable (Config.MkLocationSpec { Config._type = _type,  Config.location = location }) =
+  case _type of
+    "git"   -> GitRepo $ fromText location
+    "inbox" -> InboxDir $ fromText location
+    _       -> UnknownTrackable _type $ fromText location
 
 main :: IO ()
 main = sh $ do
