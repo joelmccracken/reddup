@@ -7,6 +7,7 @@ import Prelude hiding (FilePath, concat)
 import Turtle
 import Git
 import GitParse
+import Data.ByteString (readFile, ByteString)
 import qualified Config
 import qualified ShellUtil
 import qualified System.IO
@@ -103,7 +104,9 @@ locationSpecToTrackable (Config.MkLocationSpec { Config._type = _type,  Config.l
 
 main :: IO ()
 main = sh $ do
-  eitherConfig <- liftIO Config.loadConfig
+  configFilename <- fmap (unpack . lineToText) (ShellUtil.expandGlob "~/.reddup.yml")
+  configContents <- liftIO $ (Data.ByteString.readFile configFilename :: IO ByteString)
+  eitherConfig <- liftIO $ Config.loadConfig configContents
   config <- extractConfig $ eitherConfig
   handleTrackables $ configToTrackables config
   liftIO $ putStrLn "done"

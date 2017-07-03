@@ -55,7 +55,7 @@ instance FromJSON LocationSpec where
     v .:   "location"
   parseJSON _ = fail "error parsing"
 
-loadConfig :: IO (Either String Config)
-loadConfig = do
-  let decoded = (Y.decodeEither configYaml) :: Either String Config
+loadConfig :: ByteString -> IO (Either String Config)
+loadConfig contents = do
+  let decoded = (Y.decodeEither contents) :: Either String Config
   return decoded
