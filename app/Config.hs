@@ -42,8 +42,6 @@ data LocationSpec =
   , location :: Text
   } deriving (Eq, Show)
 
--- (Y.decodeEither ("\nhave-fun: scooty dooty\ngit-directories:\n - foo") ) :: Either String Config
-
 instance FromJSON Config where
   parseJSON (Y.Object v) =
     MkConfig <$>
