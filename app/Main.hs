@@ -2,9 +2,9 @@
 
 module Main where
 
-import Data.Text hiding (empty)
+import qualified Data.Text as Text
 import Prelude hiding (FilePath, concat)
-import Turtle
+import qualified Turtle as T
 import Git
 import GitParse
 import Data.ByteString (readFile, ByteString)
@@ -13,12 +13,12 @@ import qualified ShellUtil
 import qualified System.IO as SIO
 
 data Trackable
-  = GitRepo  Turtle.FilePath
-  | InboxDir Turtle.FilePath
-  | UnknownTrackable Text Turtle.FilePath
+  = GitRepo  T.FilePath
+  | InboxDir T.FilePath
+  | UnknownTrackable Text.Text T.FilePath
   deriving (Show)
 
-directoriesConfig :: Shell Trackable
+directoriesConfig :: T.Shell Trackable
 directoriesConfig = do
   let
     gitRepos = [ "~/EF"
@@ -31,62 +31,62 @@ directoriesConfig = do
                 ]
     in do
       gitDirectoriesConfig gitRepos
-        <|> inboxDirectoriesConfig inboxDirs
+        T.<|> inboxDirectoriesConfig inboxDirs
 
-gitDirectoriesConfig :: [Text] -> Shell Trackable
+gitDirectoriesConfig :: [Text.Text] -> T.Shell Trackable
 gitDirectoriesConfig dirs = do
-  repoDir <- select dirs
+  repoDir <- T.select dirs
   path <- ShellUtil.expandGlob repoDir
-  return $ (GitRepo . fromText . lineToText $ path)
+  return $ (GitRepo . T.fromText . T.lineToText $ path)
 
-inboxDirectoriesConfig :: [Text] -> Shell Trackable
+inboxDirectoriesConfig :: [Text.Text] -> T.Shell Trackable
 inboxDirectoriesConfig dirs = do
-  repoDir <- select dirs
+  repoDir <- T.select dirs
   path <- ShellUtil.expandGlob repoDir
-  return $ (InboxDir . fromText . lineToText $ path)
+  return $ (InboxDir . T.fromText . T.lineToText $ path)
 
-handleTrackables :: [Trackable] -> Shell ()
+handleTrackables :: [Trackable] -> T.Shell ()
 handleTrackables trackables = do
   Prelude.foldl (>>) (return ()) (fmap handleTrackable trackables)
 
 
-handleTrackable :: Trackable -> Shell ()
+handleTrackable :: Trackable -> T.Shell ()
 handleTrackable (GitRepo dir) = do
-  liftIO $ putStrLn $ "checking " ++ show dir
-  cd dir
-  dirExists <- testdir ".git"
+  T.liftIO $ putStrLn $ "checking " ++ show dir
+  T.cd dir
+  dirExists <- T.testdir ".git"
   if dirExists then
-    liftIO checkGitStatus
+    T.liftIO checkGitStatus
   else
-    liftIO $ putStrLn $ "ERROR IS NOT GIT REPO"
+    T.liftIO $ putStrLn $ "ERROR IS NOT GIT REPO"
   return ()
 
 handleTrackable (UnknownTrackable _type dir) =
-  liftIO $ print $ ("warning: encountered unknown trackable definition" <> _type <> "at" <> (pack (show dir)))
+  T.liftIO $ print $ ("warning: encountered unknown trackable definition" T.<> _type T.<> "at" T.<> (Text.pack (show dir)))
 
 handleTrackable (InboxDir dir) = do
-  liftIO $ putStrLn $ "checking " ++ show dir
-  cd dir
-  let status = ls "."
-  view status
+  T.liftIO $ putStrLn $ "checking " ++ show dir
+  T.cd dir
+  let status = T.ls "."
+  T.view status
   return ()
 
 checkGitStatus :: IO ()
 checkGitStatus = do
   let status = gitStatus
-  view status
+  T.view status
   let unpushedBranches = unpushedGitBranches
-  stdout $ fmap unsafeTextToLine $ fmap viewGitBranchAsUnpushed unpushedBranches
+  T.stdout $ fmap T.unsafeTextToLine $ fmap viewGitBranchAsUnpushed unpushedBranches
 
-viewGitBranchAsUnpushed :: GitBranchType -> Text
+viewGitBranchAsUnpushed :: GitBranchType -> Text.Text
 viewGitBranchAsUnpushed (GitBranch name) =
-  Data.Text.append "Unpushed: " name
+  Text.append "Unpushed: " name
 
-extractConfig :: Either String Config.Config -> Shell Config.Config
+extractConfig :: Either String Config.Config -> T.Shell Config.Config
 extractConfig eitherConfig =
   let
-    doDie :: String -> Shell Config.Config
-    doDie errorMsg = die ("error parsing config: " <> (pack errorMsg))
+    doDie :: String -> T.Shell Config.Config
+    doDie errorMsg = T.die ("error parsing config: " T.<> (Text.pack errorMsg))
   in either doDie return eitherConfig
 
 configToTrackables :: Config.Config -> [Trackable]
@@ -96,18 +96,18 @@ configToTrackables (Config.MkConfig { Config.locations = locations }) =
 locationSpecToTrackable :: Config.LocationSpec -> Trackable
 locationSpecToTrackable (Config.MkLocationSpec { Config._type = _type,  Config.location = location }) =
   case _type of
-    "git"   -> GitRepo $ fromText location
-    "inbox" -> InboxDir $ fromText location
-    _       -> UnknownTrackable _type $ fromText location
+    "git"   -> GitRepo $ T.fromText location
+    "inbox" -> InboxDir $ T.fromText location
+    _       -> UnknownTrackable _type $ T.fromText location
 
-getConfigFilename :: Shell SIO.FilePath
-getConfigFilename = fmap (fromString . unpack . lineToText) (ShellUtil.expandGlob "~/.reddup.yml")
+getConfigFilename :: T.Shell SIO.FilePath
+getConfigFilename = fmap (T.fromString . Text.unpack . T.lineToText) (ShellUtil.expandGlob "~/.reddup.yml")
 
 main :: IO ()
-main = sh $ do
+main = T.sh $ do
   configFilename <- getConfigFilename
-  configContents <- liftIO $ (Data.ByteString.readFile configFilename :: IO ByteString)
-  eitherConfig <- liftIO $ Config.loadConfig configContents
+  configContents <- T.liftIO $ (Data.ByteString.readFile configFilename :: IO ByteString)
+  eitherConfig <- T.liftIO $ Config.loadConfig configContents
   config <- extractConfig $ eitherConfig
   handleTrackables $ configToTrackables config
-  liftIO $ putStrLn "done"
+  T.liftIO $ putStrLn "done"
