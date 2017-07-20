@@ -10,9 +10,6 @@ import GitParse
 import Data.ByteString (readFile, ByteString)
 import qualified Config
 import qualified ShellUtil
-import qualified System.IO
-
--- import System.Exit
 
 data Trackable
   = GitRepo  Turtle.FilePath
