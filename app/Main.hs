@@ -10,6 +10,7 @@ import GitParse
 import Data.ByteString (readFile, ByteString)
 import qualified Config
 import qualified ShellUtil
+import qualified System.IO as SIO
 
 data Trackable
   = GitRepo  Turtle.FilePath
@@ -99,9 +100,12 @@ locationSpecToTrackable (Config.MkLocationSpec { Config._type = _type,  Config.l
     "inbox" -> InboxDir $ fromText location
     _       -> UnknownTrackable _type $ fromText location
 
+getConfigFilename :: Shell FilePath
+getConfigFilename = fmap (fromString . unpack . lineToText) (ShellUtil.expandGlob "~/.reddup.yml")
+
 main :: IO ()
 main = sh $ do
-  configFilename <- fmap (unpack . lineToText) (ShellUtil.expandGlob "~/.reddup.yml")
+  configFilename <- getConfigFilename
   configContents <- liftIO $ (Data.ByteString.readFile configFilename :: IO ByteString)
   eitherConfig <- liftIO $ Config.loadConfig configContents
   config <- extractConfig $ eitherConfig
