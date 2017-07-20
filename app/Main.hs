@@ -100,7 +100,7 @@ locationSpecToTrackable (Config.MkLocationSpec { Config._type = _type,  Config.l
     "inbox" -> InboxDir $ fromText location
     _       -> UnknownTrackable _type $ fromText location
 
-getConfigFilename :: Shell FilePath
+getConfigFilename :: Shell SIO.FilePath
 getConfigFilename = fmap (fromString . unpack . lineToText) (ShellUtil.expandGlob "~/.reddup.yml")
 
 main :: IO ()
