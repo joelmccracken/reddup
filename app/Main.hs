@@ -5,8 +5,8 @@ module Main where
 import qualified Data.Text as Text
 import Prelude hiding (FilePath, concat)
 import qualified Turtle as T
-import Git
-import GitParse
+import qualified Git as Git
+import qualified GitParse as GitParse
 import Data.ByteString (readFile, ByteString)
 import qualified Config
 import qualified ShellUtil
@@ -73,13 +73,13 @@ handleTrackable (InboxDir dir) = do
 
 checkGitStatus :: IO ()
 checkGitStatus = do
-  let status = gitStatus
+  let status = Git.gitStatus
   T.view status
-  let unpushedBranches = unpushedGitBranches
+  let unpushedBranches = Git.unpushedGitBranches
   T.stdout $ fmap T.unsafeTextToLine $ fmap viewGitBranchAsUnpushed unpushedBranches
 
-viewGitBranchAsUnpushed :: GitBranchType -> Text.Text
-viewGitBranchAsUnpushed (GitBranch name) =
+viewGitBranchAsUnpushed :: GitParse.GitBranchType -> Text.Text
+viewGitBranchAsUnpushed (GitParse.GitBranch name) =
   Text.append "Unpushed: " name
 
 extractConfig :: Either String Config.Config -> T.Shell Config.Config
