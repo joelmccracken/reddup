@@ -45,10 +45,8 @@ inboxDirectoriesConfig dirs = do
   path <- ShellUtil.expandGlob repoDir
   return $ (InboxDir . Tu.fromText . Tu.lineToText $ path)
 
-handleTrackables :: [Trackable] -> Tu.Shell ()
-handleTrackables trackables = do
-  Prelude.foldl (>>) (return ()) (fmap handleTrackable trackables)
-
+handleTrackables :: Tu.Shell Trackable -> Tu.Shell ()
+handleTrackables trackables = trackables >>= handleTrackable
 
 handleTrackable :: Trackable -> Tu.Shell ()
 handleTrackable (GitRepo dir) = do
@@ -90,18 +88,20 @@ extractConfig eitherConfig =
   in either doDie return eitherConfig
 
 configToTrackables :: Config.Config -> Tu.Shell Trackable
-configToTrackables (Config.MkConfig { Config.locations = locations }) =
-  fmap locationSpecToTrackable locations
+configToTrackables (Config.MkConfig { Config.locations = locations }) = do
+  location <- Tu.select locations
+  locationSpecToTrackable location
 
 locationSpecToTrackable :: Config.LocationSpec -> Tu.Shell Trackable
 locationSpecToTrackable (Config.MkLocationSpec { Config._type = _type,  Config.location = location }) = do
-  path <- ShellUtil.expandGlob location
+  let allExpanded = fmap (Tu.fromText . Tu.lineToText) (ShellUtil.expandGlob location)
+  _path <- allExpanded
   let trackable =
         case _type of
-          "git"   -> GitRepo $ Tu.fromText location
-          "inbox" -> InboxDir $ Tu.fromText location
-          _       -> UnknownTrackable _type $ Tu.fromText location
-   in return trackable
+          "git"   -> GitRepo _path
+          "inbox" -> InboxDir _path
+          _       -> UnknownTrackable _type  _path
+  return trackable
 
 getConfigFilename :: Tu.Shell SIO.FilePath
 getConfigFilename = fmap (Tu.fromString . T.unpack . Tu.lineToText) (ShellUtil.expandGlob "~/.reddup.yml")
