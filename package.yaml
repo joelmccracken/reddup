@@ -23,7 +23,19 @@ dependencies:
 - base >= 4.7 && < 5
 
 library:
-  source-dirs: src
+  source-dirs:
+    - src
+    - lib
+  dependencies:
+    - raw-strings-qq
+    - turtle
+    - text >= 1.2.1
+    - directory >= 1.2.2.0
+    - unix >= 2.7.1
+    - parsec
+    - foldl >= 1.2.1
+    - yaml >= 0.8.22
+    - bytestring >= 0.10.6
 
 executables:
   reddup:
@@ -36,15 +48,7 @@ executables:
     dependencies:
     - reddup
     - turtle
-    - raw-strings-qq
     - text
-    - turtle
-    - text >= 1.2.1
-    - directory >= 1.2.2.0
-    - unix >= 2.7.1
-    - parsec
-    - foldl >= 1.2.1
-    - yaml >= 0.8.22
     - bytestring >= 0.10.6
 
 tests:
