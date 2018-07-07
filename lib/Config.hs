@@ -1,35 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes       #-}
 
 module Config where
 
--- import Data.Text (Text)
 import qualified Data.Yaml as Y
 import Data.Yaml (FromJSON(..), (.:))
 import Control.Applicative
 import Data.Text hiding (empty)
+import qualified Turtle as Tu
+import Data.ByteString as BS
+import qualified Data.Text as T
+import qualified System.IO as SIO
+import qualified ShellUtil
 
-
-import Text.RawString.QQ
-import Data.ByteString (ByteString)
 import Prelude -- Ensure Applicative is in scope and we have no warnings, before/after AMP.
-
-configYaml :: ByteString
-configYaml = [r|
-locations:
-  - type: git
-    location: ~/ttm/*
-  - type: git
-    location: ~/EF
-  - type: git
-    location: ~/Reference
-  - type: git
-    location: ~/Projects/*
-  - type: inbox
-    location: ~/Desktop
-  - type: inbox
-    location: ~/Inbox
-|]
 
 data Config =
   MkConfig {
@@ -55,7 +38,11 @@ instance FromJSON LocationSpec where
     v .:   "location"
   parseJSON _ = fail "error parsing"
 
-loadConfig :: ByteString -> IO (Either String Config)
-loadConfig contents = do
-  let decoded = (Y.decodeEither contents) :: Either String Config
-  return decoded
+getConfigFilename :: Tu.Shell SIO.FilePath
+getConfigFilename = fmap (Tu.fromString . T.unpack . Tu.lineToText) (ShellUtil.expandGlob "~/.reddup.yml")
+
+loadConfig :: Tu.Shell (Either String Config)
+loadConfig = do
+  configFilename <- getConfigFilename
+  configContents <- Tu.liftIO $ (BS.readFile configFilename :: IO BS.ByteString)
+  return ((Y.decodeEither configContents) :: Either String Config)
