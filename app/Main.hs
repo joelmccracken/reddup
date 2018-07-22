@@ -57,10 +57,20 @@ extractConfig eitherConfig =
 
 main :: IO ()
 main = Tu.sh $ do
-  opts <- Tu.options "Reddup: Clean up your computer" parser
-  Tu.liftIO $ putStrLn $ show opts
+  opts <- parseOpts
+  debug opts $ T.pack $ show opts
   eitherConfig <- C.loadConfig
   config <- extractConfig eitherConfig
-  Tu.liftIO $ SIO.putStrLn $ show config
+  debug opts $ T.pack $ show opts
   Track.handleTrackables $ Track.configToTrackables config
-  Tu.liftIO $ SIO.putStrLn "done"
+  debug opts "done"
+
+parseOpts :: Tu.Shell Options
+parseOpts = Tu.options "Reddup: Keep your computer tidy" parser
+
+debug :: Options -> T.Text -> Tu.Shell ()
+debug opts txt =
+  if _debug opts then
+    Tu.liftIO $ SIO.putStrLn $ T.unpack txt
+  else
+    return ()
