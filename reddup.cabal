@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1269b1fef1cfcd64bdf8608b7edd1bb3477cb0bc203bebc255bc085c82ecf924
+-- hash: 7c039c1b56f794cbef97bce695b60f46d6f484dc99e89dd47ffaee53d0d88ad5
 
 name:           reddup
 version:        0.1.0.0
@@ -46,6 +46,7 @@ library
       Git
       GitParse
       ShellUtil
+      Trackable
   other-modules:
       Paths_reddup
   default-language: Haskell2010
