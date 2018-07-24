@@ -43,6 +43,7 @@ library
       Config
       Git
       GitParse
+      Options
       ShellUtil
       Trackable
   other-modules:
