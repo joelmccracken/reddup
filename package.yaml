@@ -25,7 +25,6 @@ dependencies:
 library:
   source-dirs:
     - src
-    - lib
   dependencies:
     - raw-strings-qq
     - turtle

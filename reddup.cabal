@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7c039c1b56f794cbef97bce695b60f46d6f484dc99e89dd47ffaee53d0d88ad5
+-- hash: 211358433249c745a118abed9515c3d979fcd0b4ff8e2d2484822bdf0cf37c5e
 
 name:           reddup
 version:        0.1.0.0
@@ -28,7 +28,6 @@ source-repository head
 library
   hs-source-dirs:
       src
-      lib
   build-depends:
       base >=4.7 && <5
     , bytestring >=0.10.6
@@ -41,7 +40,6 @@ library
     , unix >=2.7.1
     , yaml >=0.8.22
   exposed-modules:
-      Lib
       Config
       Git
       GitParse
