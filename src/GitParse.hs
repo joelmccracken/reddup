@@ -8,32 +8,32 @@ data GitBranchType
   = GitBranch Text
   deriving (Show)
 
-data GitStatusType
+data GitStatus
   = Staged Text
   | Unstaged Text
   | Untracked Text
   | Unknown Text
   deriving (Show)
 
-gitStatusLineParser :: Parsec.Parser GitStatusType
+gitStatusLineParser :: Parsec.Parser GitStatus
 gitStatusLineParser = do
   parseUntracked
     <|> parseStaged
     <|> parseUnstaged
 
-parseUntracked :: Parsec.Parser GitStatusType
+parseUntracked :: Parsec.Parser GitStatus
 parseUntracked = do
   _ <- string "??"
   value <- parseValueAfterLabel
   return $ Untracked (fromString value)
 
-parseStaged :: Parsec.Parser GitStatusType
+parseStaged :: Parsec.Parser GitStatus
 parseStaged = do
   _ <- string "M "
   value <- parseValueAfterLabel
   return $ Staged (fromString value)
 
-parseUnstaged :: Parsec.Parser GitStatusType
+parseUnstaged :: Parsec.Parser GitStatus
 parseUnstaged = do
   _ <- string " M"
   value <- parseValueAfterLabel
@@ -44,7 +44,7 @@ parseValueAfterLabel = do
   _ <- Parsec.space
   Parsec.many Parsec.anyChar
 
-parseGitStatusLine :: Turtle.Line -> GitStatusType
+parseGitStatusLine :: Turtle.Line -> GitStatus
 parseGitStatusLine line =
   let
     parsed = parse gitStatusLineParser "git status --porcelain" ((unpack . lineToText) line)

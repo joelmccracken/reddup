@@ -15,25 +15,25 @@ import qualified ShellUtil
 import Prelude -- Ensure Applicative is in scope and we have no warnings, before/after AMP.
 
 data Config =
-  MkConfig {
+  Config {
     locations :: [LocationSpec]
   } deriving (Eq, Show)
 
 data LocationSpec =
-  MkLocationSpec {
+  LocationSpec {
     _type    :: Text
   , location :: Text
   } deriving (Eq, Show)
 
 instance FromJSON Config where
   parseJSON (Y.Object v) =
-    MkConfig <$>
+    Config <$>
     v .:   "locations"
   parseJSON _ = fail "error parsing"
 
 instance FromJSON LocationSpec where
   parseJSON (Y.Object v) =
-    MkLocationSpec <$>
+    LocationSpec <$>
     v .:   "type"   <*>
     v .:   "location"
   parseJSON _ = fail "error parsing"

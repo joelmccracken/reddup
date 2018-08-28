@@ -14,4 +14,19 @@ stack exec reddup
 
 stack install
 
-#
+# todo
+
+- not/verbose
+- handler, run predef command on file (e.g. open, etc)
+- inbox dir
+  - mv file to predefined location(s)
+  - rename
+  - delete
+- git
+  - unstaged changes
+    - commit everything with text WIP
+  - untracked files
+    - add and commit as WIP
+    - add to gitignore
+  - push any branch
+- also an exit for each of these

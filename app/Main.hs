@@ -23,6 +23,7 @@ main = Tu.sh $ do
   O.debug opts $ T.pack $ show opts
   eitherConfig <- C.loadConfig
   config <- extractConfig eitherConfig
-  O.debug opts $ T.pack $ show opts
-  Track.handleTrackables $ Track.configToTrackables config
+  O.debug opts $ T.pack $ show config
+  let trackables = Track.configToTrackables config
+  Track.handleTrackables trackables opts
   O.debug opts "done"

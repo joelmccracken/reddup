@@ -10,7 +10,7 @@ import qualified Control.Foldl as Fold
 
 import GitParse
 
-gitStatus :: Shell GitStatusType
+gitStatus :: Shell GitStatus
 gitStatus = do
   let statusStream = inshell "git status --porcelain" Turtle.empty
   fmap parseGitStatusLine statusStream
