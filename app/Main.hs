@@ -13,9 +13,9 @@ import qualified Options as O
 extractConfig :: Either String C.Config -> Tu.Shell C.Config
 extractConfig eitherConfig =
   let
-    doDie :: String -> Tu.Shell C.Config
-    doDie errorMsg = Tu.die ("error parsing config: " Tu.<> (T.pack errorMsg))
-  in either doDie return eitherConfig
+    die :: String -> Tu.Shell C.Config
+    die errorMsg = Tu.die ("error parsing config: " Tu.<> (T.pack errorMsg))
+  in either die return eitherConfig
 
 main :: IO ()
 main = Tu.sh $ do
