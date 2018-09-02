@@ -6,6 +6,23 @@ I like to keep my computer neat and organized: code changes committed, branches 
 
 Reddup helps me make this cleanup process easy to do, so that I do it more often, and also know when I need to do it.
 
+# example config
+in file: `~/.reddup.yml`
+
+```
+locations:
+  - type: git
+    location: ~/EF
+  - type: git
+    location: ~/Reference
+  - type: git
+    location: ~/Projects/*
+  - type: inbox
+    location: ~/Desktop
+  - type: inbox
+    location: ~/Inbox
+```
+
 # commands
 
 stack build
