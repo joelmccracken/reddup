@@ -15,7 +15,7 @@ gitStatus = do
   let statusStream = inshell "git status --porcelain" Turtle.empty
   fmap parseGitStatusLine statusStream
 
-gitBranches :: Shell GitBranchType
+gitBranches :: Shell GitBranch
 gitBranches = do
   let branchStream = inshell "git branch" Turtle.empty
   fmap parseGitBranchLine branchStream
@@ -23,13 +23,13 @@ gitBranches = do
 lengthOfOutput :: Shell Turtle.Line -> Shell Int
 lengthOfOutput cmd = Turtle.fold cmd Fold.length
 
-remoteBranchContainsBranch :: GitBranchType -> Shell Bool
+remoteBranchContainsBranch :: GitBranch -> Shell Bool
 remoteBranchContainsBranch (GitBranch name) = do
   let command = inshell (concat ["git branch -r --contains ", name]) Turtle.empty
   len <- lengthOfOutput command
   return $ len > 0
 
-withoutRemote :: Shell GitBranchType -> GitBranchType -> Shell GitBranchType
+withoutRemote :: Shell GitBranch -> GitBranch -> Shell GitBranch
 withoutRemote accum next = do
   remoteFound <- remoteBranchContainsBranch next
   if remoteFound then
@@ -37,5 +37,5 @@ withoutRemote accum next = do
   else
     accum <|> return next
 
-unpushedGitBranches :: Shell GitBranchType
+unpushedGitBranches :: Shell GitBranch
 unpushedGitBranches = join $ fold gitBranches $ Fold withoutRemote mzero id

@@ -4,7 +4,7 @@ import Data.Text
 import Text.ParserCombinators.Parsec as Parsec
 import Turtle hiding ((<|>))
 
-data GitBranchType
+data GitBranch
   = GitBranch Text
   deriving (Show)
 
@@ -53,7 +53,7 @@ parseGitStatusLine line =
       Left _ -> Unknown (lineToText line)
       Right value -> value
 
-gitBranchLineParser :: Parsec.Parser GitBranchType
+gitBranchLineParser :: Parsec.Parser GitBranch
 gitBranchLineParser =
   let
     spacesThenAnything = (Parsec.spaces >> Parsec.many Parsec.anyChar)
@@ -63,7 +63,7 @@ gitBranchLineParser =
     name <- branchNameParser
     return $ GitBranch (fromString name)
 
-parseGitBranchLine :: Turtle.Line -> GitBranchType
+parseGitBranchLine :: Turtle.Line -> GitBranch
 parseGitBranchLine line =
   let
     parsed = parse gitBranchLineParser "git branch" ((unpack . lineToText) line)

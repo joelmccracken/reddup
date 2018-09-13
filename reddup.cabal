@@ -1,8 +1,8 @@
--- This file has been generated from package.yaml by hpack version 0.20.0.
+-- This file has been generated from package.yaml by hpack version 0.28.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 211358433249c745a118abed9515c3d979fcd0b4ff8e2d2484822bdf0cf37c5e
+-- hash: ef4a0e000c61c62eac607ed94e402bccc60a62ba0286cdebc2ed27ade108f1cc
 
 name:           reddup
 version:        0.1.0.0
@@ -16,7 +16,6 @@ license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
 cabal-version:  >= 1.10
-
 extra-source-files:
     ChangeLog.md
     README.md
