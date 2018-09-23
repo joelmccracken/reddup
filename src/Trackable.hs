@@ -6,7 +6,7 @@ import qualified Data.Text as T
 import Prelude hiding (FilePath, concat)
 import qualified Turtle as Tu
 import qualified Git as Git
-import qualified System.IO as SIO
+-- import qualified System.IO as SIO
 import Data.Monoid ((<>))
 import qualified GitParse as GP
 import qualified ShellUtil
@@ -38,8 +38,7 @@ printHandler nh =
     format =
       case nh of
         NHGit dir' nhg ->
-          let dir = pathToTextOrError dir'
-          in
+          let dir = pathToTextOrError dir' in
           case nhg of
             NHStatus (GP.Staged f) -> formatPath dir f "staged changes"
             NHStatus (GP.Unstaged f) -> formatPath dir f "unstaged changes"
@@ -47,7 +46,7 @@ printHandler nh =
             NHStatus (GP.Unknown f) -> formatPath dir f "(unknown git status)"
             NHUnpushedBranch (GP.GitBranch branchName) ->
               dir <> ": Unpushed branch '" <> branchName <> "'"
-            NHNotGitRepo -> dir <> ": Not a git repo"
+            NHNotGitRepo -> dir <> ": is not a git repo"
         _ -> undefined
 
     formatPath :: T.Text -> T.Text -> T.Text -> T.Text
@@ -62,22 +61,21 @@ handleTrackable :: O.Options -> Trackable -> Tu.Shell ()
 handleTrackable opts trackable =
   case trackable of
     (GitRepo repo) ->
-      handleGitTrackable opts repo
+      handleGitTrackable opts repo >>= printHandler
     (InboxDir dir) ->
       handleInboxTrackable opts dir
     (UnknownTrackable type' dir) ->
       handleUnknownTrackable opts type' dir
 
-handleGitTrackable :: O.Options -> GitRepoPath -> Tu.Shell ()
+handleGitTrackable :: O.Options -> GitRepoPath -> Tu.Shell NeedsHandled
 handleGitTrackable opts dir = do
   O.verbose opts $ "checking " <> (T.pack $ show dir)
   Tu.cd dir
   dirExists <- Tu.testdir ".git"
   if dirExists then
-    Tu.liftIO $ checkGitStatus dir
+    checkGitStatus dir
   else
-    Tu.liftIO $ SIO.putStrLn $ "Warning: " <> (T.unpack $ pathToTextOrError dir) <> " IS NOT A GIT REPO"
-  return ()
+    return $ NHGit dir NHNotGitRepo
 
 handleUnknownTrackable :: O.Options -> T.Text -> Tu.FilePath -> Tu.Shell ()
 handleUnknownTrackable  _ type' dir =
@@ -95,12 +93,10 @@ formatInboxTrackable :: Tu.FilePath -> Tu.FilePath -> T.Text
 formatInboxTrackable dir item =
   (pathToTextOrError dir) <> "/" <> (pathToTextOrError item) <> ": file present"
 
-checkGitStatus :: GitRepoPath -> IO ()
+checkGitStatus :: GitRepoPath -> Tu.Shell NeedsHandled
 checkGitStatus repo = do
-  let gitUnhandled =
-        (wrapUnpushed Git.unpushedGitBranches) Tu.<|>
-        (wrapStatus Git.gitStatus)
-  Tu.sh $ gitUnhandled >>= printHandler
+  (wrapUnpushed Git.unpushedGitBranches) Tu.<|>
+    (wrapStatus Git.gitStatus)
   where
     wrapStatus   = (NHGit repo <$> NHStatus <$>)
     wrapUnpushed = (NHGit repo <$> NHUnpushedBranch <$>)
