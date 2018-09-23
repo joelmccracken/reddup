@@ -13,14 +13,17 @@ import qualified ShellUtil
 import qualified Config as C
 import qualified Options as O
 
+type GitRepoPath = Tu.FilePath
+type InboxPath = Tu.FilePath
+
 data Trackable
-  = GitRepo  Tu.FilePath
-  | InboxDir Tu.FilePath
+  = GitRepo GitRepoPath
+  | InboxDir InboxPath
   | UnknownTrackable T.Text Tu.FilePath
   deriving (Show)
 
 data NeedsHandled
-  = NHGit Trackable NHGit
+  = NHGit GitRepoPath NHGit
   | NHFile Trackable Tu.FilePath
 
 data NHGit
@@ -34,9 +37,8 @@ printHandler nh =
   where
     format =
       case nh of
-        NHGit trackable nhg ->
-          let (GitRepo dir') = trackable
-              dir = pathToTextOrError dir'
+        NHGit dir' nhg ->
+          let dir = pathToTextOrError dir'
           in
           case nhg of
             NHStatus (GP.Staged f) -> formatPath dir f "staged changes"
@@ -59,21 +61,20 @@ handleTrackables trackables opts =
 handleTrackable :: O.Options -> Trackable -> Tu.Shell ()
 handleTrackable opts trackable =
   case trackable of
-    (GitRepo _) ->
-      handleGitTrackable opts trackable
+    (GitRepo repo) ->
+      handleGitTrackable opts repo
     (InboxDir dir) ->
       handleInboxTrackable opts dir
     (UnknownTrackable type' dir) ->
       handleUnknownTrackable opts type' dir
 
-handleGitTrackable :: O.Options -> Trackable -> Tu.Shell ()
-handleGitTrackable opts trackable = do
-  let (GitRepo dir) = trackable
+handleGitTrackable :: O.Options -> GitRepoPath -> Tu.Shell ()
+handleGitTrackable opts dir = do
   O.verbose opts $ "checking " <> (T.pack $ show dir)
   Tu.cd dir
   dirExists <- Tu.testdir ".git"
   if dirExists then
-    Tu.liftIO $ checkGitStatus trackable
+    Tu.liftIO $ checkGitStatus dir
   else
     Tu.liftIO $ SIO.putStrLn $ "Warning: " <> (T.unpack $ pathToTextOrError dir) <> " IS NOT A GIT REPO"
   return ()
@@ -94,15 +95,15 @@ formatInboxTrackable :: Tu.FilePath -> Tu.FilePath -> T.Text
 formatInboxTrackable dir item =
   (pathToTextOrError dir) <> "/" <> (pathToTextOrError item) <> ": file present"
 
-checkGitStatus :: Trackable  -> IO ()
-checkGitStatus trackable = do
+checkGitStatus :: GitRepoPath -> IO ()
+checkGitStatus repo = do
   let gitUnhandled =
-        (wrapStatus Git.gitStatus) Tu.<|>
-        (wrapUnpushed Git.unpushedGitBranches)
+        (wrapUnpushed Git.unpushedGitBranches) Tu.<|>
+        (wrapStatus Git.gitStatus)
   Tu.sh $ gitUnhandled >>= printHandler
   where
-    wrapStatus   = (NHGit trackable <$> NHStatus <$>)
-    wrapUnpushed = (NHGit trackable <$> NHUnpushedBranch <$>)
+    wrapStatus   = (NHGit repo <$> NHStatus <$>)
+    wrapUnpushed = (NHGit repo <$> NHUnpushedBranch <$>)
 
 pathToTextOrError ::  Tu.FilePath -> T.Text
 pathToTextOrError path =
