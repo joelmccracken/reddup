@@ -25,37 +25,32 @@ data NeedsHandled
 
 data NHGit
   = NHStatus GP.GitStatus
-  -- | NHUnpushedBranch T.Text
-  -- | NH
-
-viewGitBranchAsUnpushed :: GP.GitBranch -> T.Text
-viewGitBranchAsUnpushed (GP.GitBranch name) =
-  T.append "Unpushed: " name
-
-
+  | NHUnpushedBranch GP.GitBranch
+  | NHNotGitRepo
 
 printHandler :: NeedsHandled -> Tu.Shell ()
 printHandler nh =
-  Tu.liftIO $ putStrLn $ T.unpack $ format'
+  Tu.liftIO $ putStrLn $ T.unpack $ format
   where
-    format' =
+    format =
       case nh of
         NHGit trackable nhg ->
-          let (GitRepo dir) = trackable in
+          let (GitRepo dir') = trackable
+              dir = pathToTextOrError dir'
+          in
           case nhg of
-            NHStatus (GP.Staged s) -> formatText s " staged changes" dir
-            NHStatus (GP.Unstaged s) -> formatText s " unstaged changes" dir
-            NHStatus (GP.Untracked s) -> formatText s " untracked file" dir
-            NHStatus (GP.Unknown s) -> formatText s " (unknown git status)" dir
+            NHStatus (GP.Staged f) -> formatPath dir f "staged changes"
+            NHStatus (GP.Unstaged f) -> formatPath dir f "unstaged changes"
+            NHStatus (GP.Untracked f) -> formatPath dir f "untracked file"
+            NHStatus (GP.Unknown f) -> formatPath dir f "(unknown git status)"
+            NHUnpushedBranch (GP.GitBranch branchName) ->
+              dir <> ": Unpushed branch '" <> branchName <> "'"
+            NHNotGitRepo -> dir <> ": Not a git repo"
         _ -> undefined
 
-    formatText :: T.Text -> T.Text -> Tu.FilePath -> T.Text
-    formatText statusItem label path =
-      let
-        pathText = pathToTextOrError path
-      in
-        pathText <> "/" <> statusItem <> ": " <> label
-
+    formatPath :: T.Text -> T.Text -> T.Text -> T.Text
+    formatPath path statusItem label =
+      path <> ": " <> label <> " '" <> statusItem  <> "'"
 
 handleTrackables :: Tu.Shell Trackable -> O.Options -> Tu.Shell ()
 handleTrackables trackables opts =
@@ -101,12 +96,13 @@ formatInboxTrackable dir item =
 
 checkGitStatus :: Trackable  -> IO ()
 checkGitStatus trackable = do
-  let status = NHGit trackable <$> NHStatus <$> Git.gitStatus
-  Tu.sh $ status >>= printHandler
-  let unpushedBranches = Git.unpushedGitBranches
-  Tu.stdout $
-    fmap Tu.unsafeTextToLine $
-    fmap viewGitBranchAsUnpushed unpushedBranches
+  let gitUnhandled =
+        (wrapStatus Git.gitStatus) Tu.<|>
+        (wrapUnpushed Git.unpushedGitBranches)
+  Tu.sh $ gitUnhandled >>= printHandler
+  where
+    wrapStatus   = (NHGit trackable <$> NHStatus <$>)
+    wrapUnpushed = (NHGit trackable <$> NHUnpushedBranch <$>)
 
 pathToTextOrError ::  Tu.FilePath -> T.Text
 pathToTextOrError path =
