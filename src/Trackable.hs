@@ -15,6 +15,7 @@ import qualified Options as O
 
 type GitRepoPath = Tu.FilePath
 type InboxPath = Tu.FilePath
+type FilePath = Tu.FilePath
 
 data Trackable
   = GitRepo GitRepoPath
@@ -24,7 +25,7 @@ data Trackable
 
 data NeedsHandled
   = NHGit GitRepoPath NHGit
-  | NHFile Trackable Tu.FilePath
+  | NHFile InboxPath FilePath
 
 data NHGit
   = NHStatus GP.GitStatus
@@ -42,12 +43,15 @@ printHandler nh =
           case nhg of
             NHStatus (GP.Staged f) -> formatPath dir f "staged changes"
             NHStatus (GP.Unstaged f) -> formatPath dir f "unstaged changes"
+            NHStatus (GP.StagedAndUnstaged f) -> formatPath dir f "staged and unstaged changes"
             NHStatus (GP.Untracked f) -> formatPath dir f "untracked file"
             NHStatus (GP.Unknown f) -> formatPath dir f "(unknown git status)"
+            NHStatus (GP.Deleted f) -> formatPath dir f "file deleted"
             NHUnpushedBranch (GP.GitBranch branchName) ->
               dir <> ": Unpushed branch '" <> branchName <> "'"
             NHNotGitRepo -> dir <> ": is not a git repo"
-        _ -> undefined
+        NHFile inbox file ->
+          (pathToTextOrError inbox) <> ": file present " <> (pathToTextOrError file)
 
     formatPath :: T.Text -> T.Text -> T.Text -> T.Text
     formatPath path statusItem label =
@@ -63,7 +67,7 @@ handleTrackable opts trackable =
     (GitRepo repo) ->
       handleGitTrackable opts repo >>= printHandler
     (InboxDir dir) ->
-      handleInboxTrackable opts dir
+      handleInboxTrackable opts dir >>= printHandler
     (UnknownTrackable type' dir) ->
       handleUnknownTrackable opts type' dir
 
@@ -81,13 +85,12 @@ handleUnknownTrackable :: O.Options -> T.Text -> Tu.FilePath -> Tu.Shell ()
 handleUnknownTrackable  _ type' dir =
   Tu.liftIO $ print $ ("warning: encountered unknown trackable definition " Tu.<> type' Tu.<> " at " Tu.<> (T.pack (show dir)))
 
-handleInboxTrackable :: O.Options -> Tu.FilePath -> Tu.Shell ()
+handleInboxTrackable :: O.Options -> Tu.FilePath -> Tu.Shell NeedsHandled
 handleInboxTrackable opts dir = do
   O.verbose opts $ "checking " <> pathToTextOrError dir
   Tu.cd dir
   let status = Tu.ls "."
-  Tu.sh (status >>= Tu.liftIO . putStrLn . T.unpack . ((formatInboxTrackable dir) . Tu.filename))
-  return ()
+  status >>= (return . NHFile dir)
 
 formatInboxTrackable :: Tu.FilePath -> Tu.FilePath -> T.Text
 formatInboxTrackable dir item =

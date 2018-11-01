@@ -10,16 +10,20 @@ data GitBranch
 
 data GitStatus
   = Staged Text
+  | StagedAndUnstaged Text
   | Unstaged Text
   | Untracked Text
+  | Deleted Text
   | Unknown Text
   deriving (Show)
 
 gitStatusLineParser :: Parsec.Parser GitStatus
 gitStatusLineParser = do
-  parseUntracked
-    <|> parseStaged
-    <|> parseUnstaged
+  try parseUntracked
+    <|> try parseStaged
+    <|> try parseStagedAndUnstaged
+    <|> try parseDeleted
+    <|> try parseUnstaged
 
 parseUntracked :: Parsec.Parser GitStatus
 parseUntracked = do
@@ -32,6 +36,18 @@ parseStaged = do
   _ <- string "M "
   value <- parseValueAfterLabel
   return $ Staged (fromString value)
+
+parseStagedAndUnstaged :: Parsec.Parser GitStatus
+parseStagedAndUnstaged = do
+  _ <- string "MM"
+  value <- parseValueAfterLabel
+  return $ StagedAndUnstaged (fromString value)
+
+parseDeleted :: Parsec.Parser GitStatus
+parseDeleted = do
+  _ <- string " D"
+  value <- parseValueAfterLabel
+  return $ Deleted (fromString value)
 
 parseUnstaged :: Parsec.Parser GitStatus
 parseUnstaged = do
