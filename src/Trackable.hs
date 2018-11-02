@@ -12,6 +12,7 @@ import qualified GitParse as GP
 import qualified ShellUtil
 import qualified Config as C
 import qualified Options as O
+import qualified System.IO as IO
 
 type GitRepoPath = Tu.FilePath
 type InboxPath = Tu.FilePath
@@ -23,39 +24,42 @@ data Trackable
   | UnknownTrackable T.Text Tu.FilePath
   deriving (Show)
 
-data NeedsHandled
-  = NHGit GitRepoPath NHGit
-  | NHFile InboxPath FilePath
+data NHGit = NHGit GitRepoPath NHGitItem
+data NHFile = NHFile InboxPath FilePath
 
-data NHGit
+data NHGitItem
   = NHStatus GP.GitStatus
   | NHUnpushedBranch GP.GitBranch
   | NHNotGitRepo
 
-printHandler :: NeedsHandled -> Tu.Shell ()
-printHandler nh =
+gitPrintHandler :: NHGit -> Tu.Shell ()
+gitPrintHandler (NHGit dir' nhg) =
   Tu.liftIO $ putStrLn $ T.unpack $ format
   where
     format =
-      case nh of
-        NHGit dir' nhg ->
-          let dir = pathToTextOrError dir' in
-          case nhg of
-            NHStatus (GP.Staged f) -> formatPath dir f "staged changes"
-            NHStatus (GP.Unstaged f) -> formatPath dir f "unstaged changes"
-            NHStatus (GP.StagedAndUnstaged f) -> formatPath dir f "staged and unstaged changes"
-            NHStatus (GP.Untracked f) -> formatPath dir f "untracked file"
-            NHStatus (GP.Unknown f) -> formatPath dir f "(unknown git status)"
-            NHStatus (GP.Deleted f) -> formatPath dir f "file deleted"
-            NHUnpushedBranch (GP.GitBranch branchName) ->
-              dir <> ": Unpushed branch '" <> branchName <> "'"
-            NHNotGitRepo -> dir <> ": is not a git repo"
-        NHFile inbox file ->
-          (pathToTextOrError inbox) <> ": file present " <> (pathToTextOrError file)
-
+      let dir = pathToTextOrError dir' in
+      case nhg of
+        NHStatus (GP.Staged f) -> formatPath dir f "staged changes"
+        NHStatus (GP.Unstaged f) -> formatPath dir f "unstaged changes"
+        NHStatus (GP.StagedAndUnstaged f) -> formatPath dir f "staged and unstaged changes"
+        NHStatus (GP.Untracked f) -> formatPath dir f "untracked file"
+        NHStatus (GP.Deleted f) -> formatPath dir f "file deleted"
+        NHStatus (GP.Unknown f) -> formatPath dir f "(unknown git status)"
+        NHUnpushedBranch (GP.GitBranch branchName) ->
+          dir <> ": Unpushed branch '" <> branchName <> "'"
+        NHNotGitRepo -> dir <> ": is not a git repo"
     formatPath :: T.Text -> T.Text -> T.Text -> T.Text
     formatPath path statusItem label =
       path <> ": " <> label <> " '" <> statusItem  <> "'"
+
+
+inboxPrintHandler :: NHFile -> Tu.Shell ()
+inboxPrintHandler (NHFile inbox file) =
+  Tu.liftIO $ putStrLn $ T.unpack $ format
+  where
+    format =
+      (pathToTextOrError inbox) <> ": file present " <> (pathToTextOrError file)
+
 
 handleTrackables :: Tu.Shell Trackable -> O.Options -> Tu.Shell ()
 handleTrackables trackables opts =
@@ -65,13 +69,56 @@ handleTrackable :: O.Options -> Trackable -> Tu.Shell ()
 handleTrackable opts trackable =
   case trackable of
     (GitRepo repo) ->
-      handleGitTrackable opts repo >>= printHandler
+      handleGitTrackable opts repo >>= gitPrintHandler
     (InboxDir dir) ->
-      handleInboxTrackable opts dir >>= printHandler
+      handleInboxTrackable opts dir >>= inboxHandler'
+
+      -- inboxPrintHandler
     (UnknownTrackable type' dir) ->
       handleUnknownTrackable opts type' dir
 
-handleGitTrackable :: O.Options -> GitRepoPath -> Tu.Shell NeedsHandled
+inboxHandler' :: NHFile -> Tu.Shell ()
+inboxHandler' nh@(NHFile inbox file) = do
+  let
+    fmtMsg =
+      (pathToTextOrError inbox) <> ": file present " <> (pathToTextOrError file)
+  Tu.liftIO $ do
+    putStrLn $ T.unpack $ fmtMsg
+    putStrLn "Action choices:"
+    putStrLn "(o)pen"
+    putStrLn "(d)elete"
+    putStrLn "open (e)nclosing directory"
+    putStrLn "(s)kip this item"
+    putStrLn "(q)uit"
+    putStrLn "Selection: "
+    IO.hFlush IO.stdout
+    selection <- getLine
+    case selection of
+      "o" -> do
+        putStrLn "opening..."
+        fileText <- case (Tu.toText file) of
+                      Left l -> do
+                        putStrLn $ T.unpack $ "(Decode ERROR: problem with path encoding for " <> l <> ")"
+                        Tu.sh $ Tu.exit (Tu.ExitFailure 1)
+                        return ""
+                      Right r -> return r
+
+        Tu.sh $ do
+          _ <- Tu.proc "open" [fileText] Tu.empty
+          inboxHandler' nh
+      "d" -> undefined
+      "e" -> undefined
+      "s" ->
+        putStrLn "skipping..."
+        -- just return from this handler, nothing left to do
+      "q" -> do
+        Tu.sh $ Tu.exit Tu.ExitSuccess
+      _ -> do
+        putStrLn "input unrecognized."
+        Tu.sh $ inboxHandler' nh
+
+
+handleGitTrackable :: O.Options -> GitRepoPath -> Tu.Shell NHGit
 handleGitTrackable opts dir = do
   O.verbose opts $ "checking " <> (T.pack $ show dir)
   Tu.cd dir
@@ -85,18 +132,18 @@ handleUnknownTrackable :: O.Options -> T.Text -> Tu.FilePath -> Tu.Shell ()
 handleUnknownTrackable  _ type' dir =
   Tu.liftIO $ print $ ("warning: encountered unknown trackable definition " Tu.<> type' Tu.<> " at " Tu.<> (T.pack (show dir)))
 
-handleInboxTrackable :: O.Options -> Tu.FilePath -> Tu.Shell NeedsHandled
+handleInboxTrackable :: O.Options -> Tu.FilePath -> Tu.Shell NHFile
 handleInboxTrackable opts dir = do
   O.verbose opts $ "checking " <> pathToTextOrError dir
   Tu.cd dir
-  let status = Tu.ls "."
-  status >>= (return . NHFile dir)
+  let files = Tu.ls "."
+  files >>= (return . NHFile dir)
 
 formatInboxTrackable :: Tu.FilePath -> Tu.FilePath -> T.Text
 formatInboxTrackable dir item =
   (pathToTextOrError dir) <> "/" <> (pathToTextOrError item) <> ": file present"
 
-checkGitStatus :: GitRepoPath -> Tu.Shell NeedsHandled
+checkGitStatus :: GitRepoPath -> Tu.Shell NHGit
 checkGitStatus repo = do
   (wrapUnpushed Git.unpushedGitBranches) Tu.<|>
     (wrapStatus Git.gitStatus)
