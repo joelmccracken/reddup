@@ -11,6 +11,7 @@ import Data.Monoid ((<>))
 import Trackable.Data
 import Trackable.Util
 import qualified System.IO as IO
+import qualified ShellUtil
 
 inboxPrintHandler :: NHFile -> Tu.Shell ()
 inboxPrintHandler (NHFile inbox file) =
@@ -33,10 +34,10 @@ inboxHandler' nh@(NHFile inbox file) = do
     putStrLn "(o)pen"
     putStrLn "(d)elete"
     putStrLn "open (e)nclosing directory"
-    putStrLn "(r)ename item"
-    putStrLn "(s)kip this item"
+    putStrLn "(r)ename file"
+    putStrLn "open a (s)hell"
     putStrLn "(q)uit"
-    putStrLn "Selection: "
+    putStr "Selection: "
     IO.hFlush IO.stdout
     selection <- getLine
     case selection of
@@ -54,8 +55,14 @@ inboxHandler' nh@(NHFile inbox file) = do
         Tu.sh $ do
           _ <- Tu.proc "open" [T.pack $ Tu.encodeString $ Tu.directory file] Tu.empty
           inboxHandler' nh
-      "s" ->
-        putStrLn "skipping."
+      "s" -> do
+        putStrLn "Starting bash. Reddup will continue when subshell exits."
+        putStrLn "Filename available in shell as $FILE."
+        let adtlVars = [("FILE", Tu.encodeString file)]
+        ShellUtil.openInteractiveShell adtlVars
+        Tu.sh $ inboxHandler' nh
+      "n" ->
+        putStrLn "going to next."
         -- just return from this handler, nothing left to do
       "r" ->
         handleRename nh
@@ -68,25 +75,31 @@ inboxHandler' nh@(NHFile inbox file) = do
 handleRename :: NHFile -> IO ()
 handleRename nh@(NHFile _inbox filePath) = do
   putStrLn $ "renaming; original name " <> (T.unpack $ pathToTextOrError filePath)
+  putStrLn $ "Enter new name:"
   IO.hFlush IO.stdout
   newName <- getLine
   let newPath = (Tu.directory filePath) Tu.</> (Tu.fromText $ T.pack newName)
-  putStrLn $ "new name: " <> newName <>"; Is this OK?"
-  putStrLn "(a)ccept new name"
-  putStrLn "(c)ancel renaming (go back to previous menu)"
-  putStrLn "(t)ry again (enter a new name)"
-  IO.hFlush IO.stdout
-  renameSelection <- getLine
-  case renameSelection of
-    "a" -> do
-      Tu.sh $ Tu.mv filePath newPath
-    "c" ->
-      Tu.sh $ inboxHandler' nh
-    "t" ->
-      handleRename nh
-    _ -> do
-      putStrLn "input unrecognized."
-      handleRename nh
+  destinationExists <- Tu.testfile newPath
+  if destinationExists then do
+    putStrLn "destination exists; choose another name."
+    handleRename nh
+  else do
+    putStrLn $ "new name: " <> newName <>"; Is this OK?"
+    putStrLn "(a)ccept new name"
+    putStrLn "(c)ancel renaming (go back to previous menu)"
+    putStrLn "(t)ry again (enter a new name)"
+    IO.hFlush IO.stdout
+    renameSelection <- getLine
+    case renameSelection of
+      "a" -> do
+        Tu.sh $ Tu.mv filePath newPath
+      "c" ->
+        Tu.sh $ inboxHandler' nh
+      "t" ->
+        handleRename nh
+      _ -> do
+        putStrLn "input unrecognized."
+        handleRename nh
 
 gitPrintHandler :: NHGit -> Tu.Shell ()
 gitPrintHandler (NHGit dir' nhg) =

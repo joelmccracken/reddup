@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1450cb87d3fa0e240ee760d2f357767859b9f42d06efb920b1425d4441e98611
+-- hash: 50e65b093f38270ff4a5dcc30bf8638ec5795adef26156371d2fd76ea628bf7b
 
 name:           reddup
 version:        0.1.0.0
@@ -33,6 +33,7 @@ library
     , directory >=1.2.2.0
     , foldl >=1.2.1
     , parsec
+    , process
     , raw-strings-qq
     , text >=1.2.1
     , turtle

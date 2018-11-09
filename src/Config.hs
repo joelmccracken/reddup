@@ -4,15 +4,13 @@ module Config where
 
 import qualified Data.Yaml as Y
 import Data.Yaml (FromJSON(..), (.:))
-import Control.Applicative
+-- import Control.Applicative
 import Data.Text hiding (empty)
 import qualified Turtle as Tu
 import Data.ByteString as BS
 import qualified Data.Text as T
 import qualified System.IO as SIO
 import qualified ShellUtil
-
-import Prelude -- Ensure Applicative is in scope and we have no warnings, before/after AMP.
 
 data Config =
   Config

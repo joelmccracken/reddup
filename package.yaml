@@ -32,6 +32,7 @@ library:
     - directory >= 1.2.2.0
     - unix >= 2.7.1
     - parsec
+    - process
     - foldl >= 1.2.1
     - yaml >= 0.8.22
     - bytestring >= 0.10.6
