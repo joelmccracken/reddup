@@ -60,7 +60,14 @@ inboxHandler' nh@(NHFile inbox file) = do
         putStrLn "Filename available in shell as $FILE."
         let adtlVars = [("FILE", Tu.encodeString file)]
         ShellUtil.openInteractiveShell adtlVars
-        Tu.sh $ inboxHandler' nh
+        Tu.sh $ do
+          destinationExists <- Tu.testfile file
+          if destinationExists then do
+            Tu.liftIO $ putStrLn "file still exists, continuing processing"
+            inboxHandler' nh
+          else do
+            Tu.liftIO $ putStrLn "file no longer exists, continuing to next file"
+            return ()
       "n" ->
         putStrLn "going to next."
         -- just return from this handler, nothing left to do

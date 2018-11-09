@@ -10,8 +10,6 @@ import qualified Config as C
 import qualified Trackable as Track
 import qualified Options as O
 
-import qualified ShellUtil
-
 extractConfig :: Either String C.Config -> Tu.Shell C.Config
 extractConfig eitherConfig =
   let
