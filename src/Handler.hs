@@ -65,9 +65,8 @@ inboxHandler' nh@(NHFile inbox file) = do
           if destinationExists then do
             Tu.liftIO $ putStrLn "file still exists, continuing processing"
             inboxHandler' nh
-          else do
+          else
             Tu.liftIO $ putStrLn "file no longer exists, continuing to next file"
-            return ()
       "n" ->
         putStrLn "going to next."
         -- just return from this handler, nothing left to do
