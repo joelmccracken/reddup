@@ -12,6 +12,7 @@ import Trackable.Data
 import Trackable.Util
 import qualified System.IO as IO
 import qualified ShellUtil
+import qualified Config as C
 
 inboxPrintHandler :: NHFile -> Tu.Shell ()
 inboxPrintHandler (NHFile inbox file) =
@@ -20,11 +21,11 @@ inboxPrintHandler (NHFile inbox file) =
     format =
       (pathToTextOrError inbox) <> ": file present " <> (pathToTextOrError file)
 
-inboxInteractiveHandler :: NHFile -> Tu.Shell ()
-inboxInteractiveHandler = inboxHandler'
+inboxInteractiveHandler :: NHFile -> C.ProcessedConfig -> Tu.Shell ()
+inboxInteractiveHandler nh config = inboxHandler' nh config
 
-inboxHandler' :: NHFile -> Tu.Shell ()
-inboxHandler' nh@(NHFile inbox file) = do
+inboxHandler' :: NHFile -> C.ProcessedConfig -> Tu.Shell ()
+inboxHandler' nh@(NHFile inbox file) config = do
   let
     fmtMsg =
       (pathToTextOrError inbox) <> ": file present " <> (pathToTextOrError file)
@@ -45,7 +46,7 @@ inboxHandler' nh@(NHFile inbox file) = do
         putStrLn "opening."
         Tu.sh $ do
           _ <- Tu.proc "open" [T.pack $ Tu.encodeString file] Tu.empty
-          inboxHandler' nh
+          inboxHandler' nh config
       "d" -> do
         putStrLn "deleting."
         Tu.sh $ do
@@ -54,7 +55,7 @@ inboxHandler' nh@(NHFile inbox file) = do
         putStrLn "opening enclosing directory."
         Tu.sh $ do
           _ <- Tu.proc "open" [T.pack $ Tu.encodeString $ Tu.directory file] Tu.empty
-          inboxHandler' nh
+          inboxHandler' nh config
       "s" -> do
         putStrLn "Starting bash. Reddup will continue when subshell exits."
         putStrLn "Filename available in shell as $FILE."
@@ -64,22 +65,25 @@ inboxHandler' nh@(NHFile inbox file) = do
           destinationExists <- Tu.testfile file
           if destinationExists then do
             Tu.liftIO $ putStrLn "file still exists, continuing processing"
-            inboxHandler' nh
+            inboxHandler' nh config
           else
             Tu.liftIO $ putStrLn "file no longer exists, continuing to next file"
       "n" ->
         putStrLn "going to next."
         -- just return from this handler, nothing left to do
       "r" ->
-        handleRename nh
+        handleRename nh config
       "q" -> do
         Tu.sh $ Tu.exit Tu.ExitSuccess
       _ -> do
-        putStrLn "input unrecognized."
-        Tu.sh $ inboxHandler' nh
 
-handleRename :: NHFile -> IO ()
-handleRename nh@(NHFile _inbox filePath) = do
+
+
+        putStrLn "input unrecognized."
+        Tu.sh $ inboxHandler' nh config
+
+handleRename :: NHFile -> C.ProcessedConfig -> IO ()
+handleRename nh@(NHFile _inbox filePath) config = do
   putStrLn $ "renaming; original name " <> (T.unpack $ pathToTextOrError filePath)
   putStrLn $ "Enter new name:"
   IO.hFlush IO.stdout
@@ -88,7 +92,7 @@ handleRename nh@(NHFile _inbox filePath) = do
   destinationExists <- Tu.testfile newPath
   if destinationExists then do
     putStrLn "destination exists; choose another name."
-    handleRename nh
+    handleRename nh config
   else do
     putStrLn $ "new name: " <> newName <>"; Is this OK?"
     putStrLn "(a)ccept new name"
@@ -100,12 +104,12 @@ handleRename nh@(NHFile _inbox filePath) = do
       "a" -> do
         Tu.sh $ Tu.mv filePath newPath
       "c" ->
-        Tu.sh $ inboxHandler' nh
+        Tu.sh $ inboxHandler' nh config
       "t" ->
-        handleRename nh
+        handleRename nh config
       _ -> do
         putStrLn "input unrecognized."
-        handleRename nh
+        handleRename nh config
 
 gitPrintHandler :: NHGit -> Tu.Shell ()
 gitPrintHandler (NHGit dir' nhg) =
@@ -114,6 +118,8 @@ gitPrintHandler (NHGit dir' nhg) =
     format =
       let dir = pathToTextOrError dir' in
       case nhg of
+        NHStatus (GP.Added f) -> formatPath dir f "file added"
+        NHStatus (GP.AddedAndModified f) -> formatPath dir f "file added and modified"
         NHStatus (GP.Staged f) -> formatPath dir f "staged changes"
         NHStatus (GP.Unstaged f) -> formatPath dir f "unstaged changes"
         NHStatus (GP.StagedAndUnstaged f) -> formatPath dir f "staged and unstaged changes"

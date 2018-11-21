@@ -17,13 +17,23 @@ extractConfig eitherConfig =
     die errorMsg = Tu.die ("error parsing config: " Tu.<> (T.pack errorMsg))
   in either die return eitherConfig
 
+checkConfig' :: C.Config -> Tu.Shell C.ProcessedConfig
+checkConfig' config =
+  let
+    checkResult = C.processConfig config
+    die :: Tu.Text -> Tu.Shell C.ProcessedConfig
+    die = Tu.die  . ("error in config: " <>)
+  in either (die . C.configErrorsDisplay) return checkResult
+
 main :: IO ()
 main = Tu.sh $ do
   opts <- O.parseOpts
   O.debug opts $ T.pack $ show opts
   eitherConfig <- C.loadConfig
-  config <- extractConfig eitherConfig
-  O.debug opts $ T.pack $ show config
-  let trackables = Track.configToTrackables config
-  Track.handleTrackables trackables opts
+  configUnchecked <- extractConfig eitherConfig
+  pconfig <- checkConfig' configUnchecked
+  -- let config = C.rawConfig pconfig
+  O.debug opts $ T.pack $ show pconfig
+  let trackables = Track.configToTrackables pconfig
+  Track.handleTrackables trackables opts pconfig
   O.debug opts "done"

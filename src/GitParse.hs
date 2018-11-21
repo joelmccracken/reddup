@@ -9,7 +9,9 @@ data GitBranch
   deriving (Show)
 
 data GitStatus
-  = Staged Text
+  = Added Text
+  | AddedAndModified Text
+  | Staged Text
   | StagedAndUnstaged Text
   | Unstaged Text
   | Untracked Text
@@ -20,6 +22,8 @@ data GitStatus
 gitStatusLineParser :: Parsec.Parser GitStatus
 gitStatusLineParser = do
   try parseUntracked
+    <|> try parseAdded
+    <|> try parseAddedAndModified
     <|> try parseStaged
     <|> try parseStagedAndUnstaged
     <|> try parseDeleted
@@ -30,6 +34,18 @@ parseUntracked = do
   _ <- string "??"
   value <- parseValueAfterLabel
   return $ Untracked (fromString value)
+
+parseAdded :: Parsec.Parser GitStatus
+parseAdded = do
+  _ <- string "A "
+  value <- parseValueAfterLabel
+  return $ Added (fromString value)
+
+parseAddedAndModified :: Parsec.Parser GitStatus
+parseAddedAndModified = do
+  _ <- string "AM"
+  value <- parseValueAfterLabel
+  return $ AddedAndModified (fromString value)
 
 parseStaged :: Parsec.Parser GitStatus
 parseStaged = do

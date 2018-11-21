@@ -15,24 +15,24 @@ import qualified Handler as H
 import Trackable.Data
 import Trackable.Util
 
-handleTrackables :: Tu.Shell Trackable -> O.Options -> Tu.Shell ()
-handleTrackables trackables opts =
-  trackables >>= handleTrackable opts
+handleTrackables :: Tu.Shell Trackable -> O.Options -> C.ProcessedConfig -> Tu.Shell ()
+handleTrackables trackables opts config =
+  trackables >>= handleTrackable opts config
 
-handleTrackable :: O.Options -> Trackable -> Tu.Shell ()
-handleTrackable opts trackable =
+handleTrackable :: O.Options -> C.ProcessedConfig -> Trackable -> Tu.Shell ()
+handleTrackable opts config trackable =
   case trackable of
     (GitRepo repo) ->
       handleGitTrackable opts repo >>= H.gitPrintHandler
     (InboxDir dir) ->
-      handleInboxTrackable opts dir >>= handleInbox opts
+      handleInboxTrackable opts dir >>= handleInbox opts config
     (UnknownTrackable type' dir) ->
       handleUnknownTrackable opts type' dir
 
-handleInbox :: O.Options -> NHFile -> Tu.Shell ()
-handleInbox opts nh =
+handleInbox :: O.Options -> C.ProcessedConfig -> NHFile -> Tu.Shell ()
+handleInbox opts config nh =
   if O._interactive opts then
-    H.inboxInteractiveHandler nh
+    H.inboxInteractiveHandler nh config
   else
     H.inboxPrintHandler nh
 
@@ -70,9 +70,9 @@ checkGitStatus repo = do
     wrapStatus   = (NHGit repo <$> NHStatus <$>)
     wrapUnpushed = (NHGit repo <$> NHUnpushedBranch <$>)
 
-configToTrackables :: C.Config -> Tu.Shell Trackable
-configToTrackables (C.Config { C.locations = locations }) = do
-  location <- Tu.select locations
+configToTrackables :: C.ProcessedConfig -> Tu.Shell Trackable
+configToTrackables conf = do
+  location <- Tu.select $ C.locations $ C.rawConfig conf
   locationSpecToTrackable location
 
 locationSpecToTrackable :: C.LocationSpec -> Tu.Shell Trackable

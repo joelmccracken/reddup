@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 50e65b093f38270ff4a5dcc30bf8638ec5795adef26156371d2fd76ea628bf7b
+-- hash: e46db29f074b712721fc6c5ba4d37552798a5e6964a91d55e6846924edc18e77
 
 name:           reddup
 version:        0.1.0.0
@@ -30,6 +30,7 @@ library
   build-depends:
       base >=4.7 && <5
     , bytestring >=0.10.6
+    , containers
     , directory >=1.2.2.0
     , foldl >=1.2.1
     , parsec

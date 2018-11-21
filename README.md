@@ -46,8 +46,8 @@ each file in a handled directory. Options include:
 - Deleting
 - Renaming
 - Moving to a predefined list of destinations
-- Running ad-hoc commands entered (TODO)
 - Running custom commands defined in the configuration file (WIP)
+- Opening a shell at location to run ad-hoc commands
 
 ## Git Repositories
 
