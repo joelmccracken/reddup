@@ -14,13 +14,14 @@ import qualified ShellUtil
 import qualified Data.Map.Strict as M
 import qualified Data.List as List
 
-data ProcessedConfig = ProcessedConfig
-  { rawConfig :: Config
-  , inboxHandlerCommands :: CustomHandlers
-  , inboxMvDestinations  :: CustomHandlers
-  } deriving (Show)
+data ProcessedConfig =
+  ProcessedConfig
+    { rawConfig :: Config
+    , inboxHandlerCommands :: CustomHandlers
+    , inboxMvDestinations  :: CustomHandlers
+    } deriving (Show)
 
-type CustomHandlers = M.Map T.Text T.Text
+type CustomHandlers = M.Map T.Text InboxHandlerCommandSpec
 
 data Config =
   Config
@@ -129,7 +130,7 @@ processInboxCommandHandlersConfig cmdSpecs =
     errors =
       (CharKeyWrongNumCharsError <$> wrongNumCharsCmds)
 
-    toPair spec = (cmdName spec, cmdSpecCmd spec)
+    toPair spec = (cmdKey spec, spec)
 
     successes = toPair <$> rightNumCharsCmds
   in

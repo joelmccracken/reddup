@@ -28,3 +28,13 @@ openInteractiveShell adtlVars = do
         SP.env = Just envVars }
   _ <- SP.withCreateProcess cmd handler
   return ()
+
+shellCmdWithEnv :: Text -> EnvVars -> IO ()
+shellCmdWithEnv cmd adtlVars = do
+  let handler _ _ _ p = SP.waitForProcess p
+  envVars <- mergeWithExistingEnv adtlVars
+  let cmd' = (SP.shell (unpack cmd)) {
+        SP.delegate_ctlc = True,
+        SP.env = Just envVars }
+  _ <- SP.withCreateProcess cmd' handler
+  return ()

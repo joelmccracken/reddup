@@ -13,6 +13,7 @@ import Trackable.Util
 import qualified System.IO as IO
 import qualified ShellUtil
 import qualified Config as C
+import qualified Data.Map.Strict as M
 
 inboxPrintHandler :: NHFile -> Tu.Shell ()
 inboxPrintHandler (NHFile inbox file) =
@@ -28,39 +29,31 @@ inboxHandler' :: NHFile -> C.ProcessedConfig -> Tu.Shell ()
 inboxHandler' nh@(NHFile inbox file) config = do
   let
     fmtMsg =
-      (pathToTextOrError inbox) <> ": file present " <> (pathToTextOrError file)
+      (pathToTextOrError inbox) <>
+      ": file present " <>
+      (pathToTextOrError file)
+    inboxHandlerCommands = C.inboxHandlerCommands config
+    envVars = [("FILE", Tu.encodeString file)]
   Tu.liftIO $ do
     putStrLn $ T.unpack $ fmtMsg
     putStrLn "Action choices:"
-    putStrLn "(o)pen"
     putStrLn "(d)elete"
-    putStrLn "open (e)nclosing directory"
     putStrLn "(r)ename file"
     putStrLn "open a (s)hell"
+    printMenuCustomCommands $ M.elems inboxHandlerCommands
     putStrLn "(q)uit"
     putStr "Selection: "
     IO.hFlush IO.stdout
     selection <- getLine
     case selection of
-      "o" -> do
-        putStrLn "opening."
-        Tu.sh $ do
-          _ <- Tu.proc "open" [T.pack $ Tu.encodeString file] Tu.empty
-          inboxHandler' nh config
       "d" -> do
         putStrLn "deleting."
         Tu.sh $ do
           Tu.rm file
-      "e" -> do
-        putStrLn "opening enclosing directory."
-        Tu.sh $ do
-          _ <- Tu.proc "open" [T.pack $ Tu.encodeString $ Tu.directory file] Tu.empty
-          inboxHandler' nh config
       "s" -> do
         putStrLn "Starting bash. Reddup will continue when subshell exits."
         putStrLn "Filename available in shell as $FILE."
-        let adtlVars = [("FILE", Tu.encodeString file)]
-        ShellUtil.openInteractiveShell adtlVars
+        ShellUtil.openInteractiveShell envVars
         Tu.sh $ do
           destinationExists <- Tu.testfile file
           if destinationExists then do
@@ -76,11 +69,20 @@ inboxHandler' nh@(NHFile inbox file) config = do
       "q" -> do
         Tu.sh $ Tu.exit Tu.ExitSuccess
       _ -> do
+        putStrLn $ show $ inboxHandlerCommands
+        let result = M.lookup (T.pack $ selection) inboxHandlerCommands
+        case result of
+          Just cmd -> Tu.sh $ do
+            _ <- Tu.liftIO $ ShellUtil.shellCmdWithEnv (C.cmdSpecCmd cmd) envVars
+            inboxHandler' nh config
+          Nothing -> do
+            putStrLn "input unrecognized."
+            Tu.sh $ inboxHandler' nh config
 
 
-
-        putStrLn "input unrecognized."
-        Tu.sh $ inboxHandler' nh config
+printMenuCustomCommands :: [C.InboxHandlerCommandSpec] -> IO ()
+printMenuCustomCommands ihcSpecs = do
+  foldr (>>) (return ()) ((putStrLn . T.unpack . C.cmdName) <$> ihcSpecs)
 
 handleRename :: NHFile -> C.ProcessedConfig -> IO ()
 handleRename nh@(NHFile _inbox filePath) config = do
