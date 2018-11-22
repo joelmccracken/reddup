@@ -98,16 +98,15 @@ handlers:
   inbox:
     commands:
       - name: (o)pen
-        string: o
-        cmd: "open $FILENAME"
-      - name: open (e)nclosing directory
-        string: e
-        cmd: open
+        cmd: open "$FILE"
+        key: o
+      - name: open (e)nclosing dir
+        cmd: open .
+        key: e
     mv_destinations:
       - name: (b)ooks
-        string: b
-        directory: ~/Nextcloud/books
-      -
+        char: b
+        dir: ~/Nextcloud/books
 ```
 
 # Installation
