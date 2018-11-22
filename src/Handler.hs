@@ -76,7 +76,7 @@ inboxHandler' nh@(NHFile inbox file) config = do
             _ <- Tu.liftIO $ ShellUtil.shellCmdWithEnv (C.cmdSpecCmd cmd) envVars
             inboxHandler' nh config
           Nothing -> do
-            putStrLn "input unrecognized."
+            putStrLn $ "input unrecognized: '" <> selection <>"'"
             Tu.sh $ inboxHandler' nh config
 
 
@@ -87,16 +87,16 @@ printMenuCustomCommands ihcSpecs = do
 handleRename :: NHFile -> C.ProcessedConfig -> IO ()
 handleRename nh@(NHFile _inbox filePath) config = do
   putStrLn $ "renaming; original name " <> (T.unpack $ pathToTextOrError filePath)
-  putStrLn $ "Enter new name:"
+  putStr $ "Enter new name: "
   IO.hFlush IO.stdout
   newName <- getLine
   let newPath = (Tu.directory filePath) Tu.</> (Tu.fromText $ T.pack newName)
   destinationExists <- Tu.testfile newPath
   if destinationExists then do
-    putStrLn "destination exists; choose another name."
+    putStrLn "Error, destination exists. Choose another name."
     handleRename nh config
   else do
-    putStrLn $ "new name: " <> newName <>"; Is this OK?"
+    putStrLn $ "new name: " <> newName
     putStrLn "(a)ccept new name"
     putStrLn "(c)ancel renaming (go back to previous menu)"
     putStrLn "(t)ry again (enter a new name)"
@@ -110,7 +110,7 @@ handleRename nh@(NHFile _inbox filePath) config = do
       "t" ->
         handleRename nh config
       _ -> do
-        putStrLn "input unrecognized."
+        putStrLn $ "input unrecognized: '" <> renameSelection <>"'"
         handleRename nh config
 
 gitPrintHandler :: NHGit -> Tu.Shell ()
