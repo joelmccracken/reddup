@@ -36,7 +36,7 @@ git repositories nice and tidy.
 Often, we have directories that are temporary storage places. For example, on my
 mac, I consider `~/Desktop` and `~/Downloads` to be two such directories.
 
-When configured with a location of type `dir`, `reddup` looks for any files
+When configured with a location of type `inbox`, `reddup` looks for any files
 inside the specified directory. In non-interactive mode, it will
 will print these files for your inspection.
 
