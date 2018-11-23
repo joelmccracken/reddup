@@ -41,3 +41,9 @@ verbose' opts txt = do
     Tu.liftIO $ SIO.putStrLn $ T.unpack txt
   else
     return ()
+
+isInteractive :: ReddupT Bool
+isInteractive = do
+  reddup <- ask
+  let opts = reddupOptions reddup
+  lift $ return $ O._interactive opts

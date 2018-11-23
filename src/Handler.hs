@@ -14,6 +14,8 @@ import qualified System.IO as IO
 import qualified ShellUtil
 import qualified Config as C
 import qualified Data.Map.Strict as M
+import qualified Reddup  as R
+import Control.Monad.Reader (ask, lift)
 
 inboxPrintHandler :: NHFile -> Tu.Shell ()
 inboxPrintHandler (NHFile inbox file) =
@@ -22,8 +24,11 @@ inboxPrintHandler (NHFile inbox file) =
     format =
       (pathToTextOrError inbox) <> ": file present " <> (pathToTextOrError file)
 
-inboxInteractiveHandler :: NHFile -> C.ProcessedConfig -> Tu.Shell ()
-inboxInteractiveHandler nh config = inboxHandler' nh config
+inboxInteractiveHandler :: NHFile -> R.ReddupT ()
+inboxInteractiveHandler nh = do
+  reddup <- ask
+  let config = R.reddupConfig reddup
+  lift $ inboxHandler' nh config
 
 inboxHandler' :: NHFile -> C.ProcessedConfig -> Tu.Shell ()
 inboxHandler' nh@(NHFile inbox file) config = do

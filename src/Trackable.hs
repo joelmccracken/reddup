@@ -10,7 +10,6 @@ import qualified Git as Git
 import Data.Monoid ((<>))
 import qualified ShellUtil
 import qualified Config as C
-import qualified Options as O
 import qualified Handler as H
 import qualified Reddup  as R
 import Trackable.Data
@@ -23,21 +22,19 @@ handleTrackables trackables = do
 
 handleTrackable :: Trackable -> ReaderT R.Reddup Tu.Shell ()
 handleTrackable trackable = do
-  reddup <- ask
-  let config = R.reddupConfig reddup
-  let opts   = R.reddupOptions reddup
   case trackable of
     (GitRepo repo) ->
       handleGitTrackable repo >>= lift . H.gitPrintHandler
     (InboxDir dir) ->
-      lift $ handleInboxTrackable opts dir >>= handleInbox opts config
+      handleInboxTrackable dir >>= handleInbox
 
-handleInbox :: O.Options -> C.ProcessedConfig -> NHFile -> Tu.Shell ()
-handleInbox opts config nh =
-  if O._interactive opts then
-    H.inboxInteractiveHandler nh config
+handleInbox ::  NHFile -> R.ReddupT ()
+handleInbox nh = do
+  isInteractive <- R.isInteractive
+  if isInteractive then
+    H.inboxInteractiveHandler nh
   else
-    H.inboxPrintHandler nh
+    lift $ H.inboxPrintHandler nh
 
 handleGitTrackable :: GitRepoPath -> ReaderT R.Reddup Tu.Shell NHGit
 handleGitTrackable dir = do
@@ -49,14 +46,13 @@ handleGitTrackable dir = do
   else
     lift $ return $ NHGit dir NHNotGitRepo
 
-handleInboxTrackable :: O.Options -> Tu.FilePath -> Tu.Shell NHFile
-handleInboxTrackable opts dir = do
-  R.verbose' opts $ "checking " <> pathToTextOrError dir
-  Tu.cd dir
-  let files = Tu.ls dir
-  files >>= (return . NHFile dir)
+handleInboxTrackable :: Tu.FilePath -> R.ReddupT NHFile
+handleInboxTrackable dir = do
+  R.verbose $ "checking " <> pathToTextOrError dir
+  lift $ Tu.cd dir
+  let files = lift $ Tu.ls dir
+  files >>= (lift . return . NHFile dir)
 
-  -- i want to try to convert this path here to text and err out if it does not work
 formatInboxTrackable :: Tu.FilePath -> Tu.FilePath -> T.Text
 formatInboxTrackable dir item =
   (pathToTextOrError dir) <> "/" <> (pathToTextOrError item) <> ": file present"
