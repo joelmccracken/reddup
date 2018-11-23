@@ -31,8 +31,6 @@ handleTrackable trackable = do
       handleGitTrackable repo >>= lift . H.gitPrintHandler
     (InboxDir dir) ->
       lift $ handleInboxTrackable opts dir >>= handleInbox opts config
-    (UnknownTrackable type' dir) ->
-      lift $ handleUnknownTrackable opts type' dir
 
 handleInbox :: O.Options -> C.ProcessedConfig -> NHFile -> Tu.Shell ()
 handleInbox opts config nh =
@@ -50,10 +48,6 @@ handleGitTrackable dir = do
     lift $ checkGitStatus dir
   else
     lift $ return $ NHGit dir NHNotGitRepo
-
-handleUnknownTrackable :: O.Options -> T.Text -> Tu.FilePath -> Tu.Shell ()
-handleUnknownTrackable  _ type' dir =
-  Tu.liftIO $ print $ ("warning: encountered unknown trackable definition " Tu.<> type' Tu.<> " at " Tu.<> (T.pack (show dir)))
 
 handleInboxTrackable :: O.Options -> Tu.FilePath -> Tu.Shell NHFile
 handleInboxTrackable opts dir = do
