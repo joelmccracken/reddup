@@ -24,17 +24,3 @@ parser =
 
 parseOpts :: Tu.Shell Options
 parseOpts = Tu.options "Reddup: Keep your computer tidy" parser
-
-debug :: Options -> T.Text -> Tu.Shell ()
-debug opts txt =
-  if _debug opts then
-    Tu.liftIO $ SIO.putStrLn $ T.unpack txt
-  else
-    return ()
-
-verbose :: Options -> T.Text -> Tu.Shell ()
-verbose opts txt =
-  if _debug opts || _verbose opts then
-    Tu.liftIO $ SIO.putStrLn $ T.unpack txt
-  else
-    return ()

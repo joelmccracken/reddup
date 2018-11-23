@@ -30,19 +30,17 @@ checkConfig' config =
 main :: IO ()
 main = Tu.sh $ do
   opts <- O.parseOpts
-  O.debug opts $ T.pack $ show opts
   eitherConfig <- C.loadConfig
   configUnchecked <- extractConfig eitherConfig
   pconfig <- checkConfig' configUnchecked
-  O.debug opts $ T.pack $ show pconfig
   let reddup = R.Reddup pconfig opts
   runReaderT doIt reddup
 
-doIt :: ReaderT R.Reddup Tu.Shell ()
+doIt :: R.ReddupT ()
 doIt = do
   reddup <- ask
   let pconfig = R.reddupConfig reddup
-  let opts    = R.reddupOptions reddup
   let trackables = Track.configToTrackables pconfig
+  R.debug $ T.pack $ show reddup
   Track.handleTrackables trackables
-  lift $ O.debug opts "done"
+  R.debug "done"

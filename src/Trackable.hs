@@ -19,21 +19,20 @@ import Control.Monad.Reader
 
 handleTrackables :: Tu.Shell Trackable -> ReaderT R.Reddup Tu.Shell ()
 handleTrackables trackables = do
+  (lift trackables) >>= handleTrackable
+
+handleTrackable :: Trackable -> ReaderT R.Reddup Tu.Shell ()
+handleTrackable trackable = do
   reddup <- ask
   let config = R.reddupConfig reddup
-  let opts    = R.reddupOptions reddup
-  trackable <- lift trackables
-  lift $ handleTrackable opts config trackable
-
-handleTrackable :: O.Options -> C.ProcessedConfig -> Trackable -> Tu.Shell ()
-handleTrackable opts config trackable =
+  let opts   = R.reddupOptions reddup
   case trackable of
     (GitRepo repo) ->
-      handleGitTrackable opts repo >>= H.gitPrintHandler
+      handleGitTrackable repo >>= lift . H.gitPrintHandler
     (InboxDir dir) ->
-      handleInboxTrackable opts dir >>= handleInbox opts config
+      lift $ handleInboxTrackable opts dir >>= handleInbox opts config
     (UnknownTrackable type' dir) ->
-      handleUnknownTrackable opts type' dir
+      lift $ handleUnknownTrackable opts type' dir
 
 handleInbox :: O.Options -> C.ProcessedConfig -> NHFile -> Tu.Shell ()
 handleInbox opts config nh =
@@ -42,15 +41,15 @@ handleInbox opts config nh =
   else
     H.inboxPrintHandler nh
 
-handleGitTrackable :: O.Options -> GitRepoPath -> Tu.Shell NHGit
-handleGitTrackable opts dir = do
-  O.verbose opts $ "checking " <> (T.pack $ show dir)
-  Tu.cd dir
-  dirExists <- Tu.testdir ".git"
+handleGitTrackable :: GitRepoPath -> ReaderT R.Reddup Tu.Shell NHGit
+handleGitTrackable dir = do
+  R.verbose $ "checking " <> (T.pack $ show dir)
+  lift $ Tu.cd dir
+  dirExists <- lift $ Tu.testdir ".git"
   if dirExists then
-    checkGitStatus dir
+    lift $ checkGitStatus dir
   else
-    return $ NHGit dir NHNotGitRepo
+    lift $ return $ NHGit dir NHNotGitRepo
 
 handleUnknownTrackable :: O.Options -> T.Text -> Tu.FilePath -> Tu.Shell ()
 handleUnknownTrackable  _ type' dir =
@@ -58,7 +57,7 @@ handleUnknownTrackable  _ type' dir =
 
 handleInboxTrackable :: O.Options -> Tu.FilePath -> Tu.Shell NHFile
 handleInboxTrackable opts dir = do
-  O.verbose opts $ "checking " <> pathToTextOrError dir
+  R.verbose' opts $ "checking " <> pathToTextOrError dir
   Tu.cd dir
   let files = Tu.ls dir
   files >>= (return . NHFile dir)

@@ -19,7 +19,7 @@ data ProcessedConfig =
     { rawConfig :: Config
     , inboxHandlerCommands :: CustomHandlers
     , inboxMvDestinations  :: CustomHandlers
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 type CustomHandlers = M.Map T.Text InboxHandlerCommandSpec
 
