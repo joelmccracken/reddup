@@ -3,7 +3,7 @@
 module Config where
 
 import qualified Data.Yaml as Y
-import Data.Yaml (FromJSON(..), (.:))
+import Data.Yaml (FromJSON(..), (.:), (.:?))
 -- import Control.Applicative
 import Data.Text hiding (empty)
 import qualified Turtle as Tu
@@ -29,11 +29,10 @@ data Config =
     , handlers :: HandlerSpecs
     } deriving (Eq, Show)
 
-data LocationSpec =
-  LocationSpec
-    { _type    :: Text
-    , location :: Text
-    } deriving (Eq, Show)
+data LocationSpec
+  = GitLoc {location :: Text}
+  | InboxLoc {location :: Text, ignoredFiles :: Maybe [Text] }
+  deriving (Eq, Show)
 
 data HandlerSpecs =
   HandlerSpecs
@@ -68,11 +67,14 @@ instance FromJSON Config where
   parseJSON _ = fail "error parsing config"
 
 instance FromJSON LocationSpec where
-  parseJSON (Y.Object v) =
-    LocationSpec <$>
-    v .:   "type"   <*>
-    v .:   "location"
-  parseJSON _ = fail "error parsing location specs"
+  parseJSON = Y.withObject "LocationSpec" $ \v -> do
+    type'     <- v .:  "type"
+    location' <- v .:  "location"
+    ignoredFiles' <- v .:? "ignored_files"
+    case (T.unpack $ type') of
+      "git" -> return $ GitLoc location'
+      "inbox" -> return $ InboxLoc location' ignoredFiles'
+      _ -> fail $ "Location type must be either 'git' or 'inbox', found '" <> T.unpack type' <> "'"
 
 instance FromJSON HandlerSpecs where
   parseJSON (Y.Object v) =
@@ -151,7 +153,6 @@ processConfig config =
       , inboxHandlerCommands = ihcSuccesses
       , inboxMvDestinations = M.empty
       }
-
   in
     if List.length allErrors > 0 then
       Left allErrors

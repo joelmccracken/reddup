@@ -9,6 +9,8 @@ import qualified Turtle as Tu
 import qualified Config as C
 import qualified Trackable as Track
 import qualified Options as O
+import qualified Reddup  as R
+import Control.Monad.Reader
 
 extractConfig :: Either String C.Config -> Tu.Shell C.Config
 extractConfig eitherConfig =
@@ -32,8 +34,15 @@ main = Tu.sh $ do
   eitherConfig <- C.loadConfig
   configUnchecked <- extractConfig eitherConfig
   pconfig <- checkConfig' configUnchecked
-  -- let config = C.rawConfig pconfig
   O.debug opts $ T.pack $ show pconfig
+  let reddup = R.Reddup pconfig opts
+  runReaderT doIt reddup
+
+doIt :: ReaderT R.Reddup Tu.Shell ()
+doIt = do
+  reddup <- ask
+  let pconfig = R.reddupConfig reddup
+  let opts    = R.reddupOptions reddup
   let trackables = Track.configToTrackables pconfig
-  Track.handleTrackables trackables opts pconfig
-  O.debug opts "done"
+  Track.handleTrackables trackables
+  lift $ O.debug opts "done"

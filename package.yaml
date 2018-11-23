@@ -37,6 +37,7 @@ library:
     - foldl >= 1.2.1
     - yaml >= 0.8.22
     - bytestring >= 0.10.6
+    - mtl
 
 executables:
   reddup:
@@ -51,6 +52,7 @@ executables:
     - turtle
     - text
     - bytestring >= 0.10.6
+    - mtl
 
 tests:
   reddup-test:

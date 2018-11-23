@@ -12,12 +12,18 @@ import qualified ShellUtil
 import qualified Config as C
 import qualified Options as O
 import qualified Handler as H
+import qualified Reddup  as R
 import Trackable.Data
 import Trackable.Util
+import Control.Monad.Reader
 
-handleTrackables :: Tu.Shell Trackable -> O.Options -> C.ProcessedConfig -> Tu.Shell ()
-handleTrackables trackables opts config =
-  trackables >>= handleTrackable opts config
+handleTrackables :: Tu.Shell Trackable -> ReaderT R.Reddup Tu.Shell ()
+handleTrackables trackables = do
+  reddup <- ask
+  let config = R.reddupConfig reddup
+  let opts    = R.reddupOptions reddup
+  trackable <- lift trackables
+  lift $ handleTrackable opts config trackable
 
 handleTrackable :: O.Options -> C.ProcessedConfig -> Trackable -> Tu.Shell ()
 handleTrackable opts config trackable =
@@ -76,12 +82,15 @@ configToTrackables conf = do
   locationSpecToTrackable location
 
 locationSpecToTrackable :: C.LocationSpec -> Tu.Shell Trackable
-locationSpecToTrackable (C.LocationSpec { C._type = _type,  C.location = location }) = do
-  let allExpanded = fmap (Tu.fromText . Tu.lineToText) (ShellUtil.expandGlob location)
-  _path <- allExpanded
-  let trackable =
-        case _type of
-          "git"   -> GitRepo _path
-          "inbox" -> InboxDir _path
-          _       -> UnknownTrackable _type  _path
-  return trackable
+locationSpecToTrackable ls = do
+  let expand location =
+        (Tu.fromText . Tu.lineToText) <$> (ShellUtil.expandGlob location)
+
+  case ls of
+    C.GitLoc location -> do
+      path' <- (expand location)
+      return $ GitRepo path'
+
+    C.InboxLoc location _foo -> do
+      path' <- (expand location)
+      return $ InboxDir path'
