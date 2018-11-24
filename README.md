@@ -57,8 +57,7 @@ repository to ensure that it is "tidy". It checks that there are:
 - no unstaged changes
 - no untracked files
 - no staged, uncommitted changes
-- no unpushed branches (TODO)
-- no stashes (TODO, not even sure if I want this)
+- no unpushed branches
 
 In non-interactive mode, it will will print these files for your inspection.
 
