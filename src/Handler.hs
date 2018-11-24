@@ -15,7 +15,8 @@ import qualified ShellUtil
 import qualified Config as C
 import qualified Data.Map.Strict as M
 import qualified Reddup  as R
-import Control.Monad.Reader (ask, lift, runReaderT)
+import Control.Monad.Reader (ask, lift, runReaderT, liftIO)
+import qualified Data.List as List
 
 inboxPrintHandler :: NHFile -> Tu.Shell ()
 inboxPrintHandler (NHFile (InboxDirTrackable inbox _locSpec) file) =
@@ -29,7 +30,16 @@ inboxInteractiveHandler nh = do
   inboxHandler' nh
 
 inboxHandler' :: NHFile -> R.Reddup ()
-inboxHandler' nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
+inboxHandler' nh@(NHFile (InboxDirTrackable inbox locSpec) file) = do
+  let isIgnored = isFileIgnored file locSpec
+  if isIgnored then
+    R.verbose $ (T.pack $ Tu.encodeString file) <> " is in ignored list. skipping."
+  else do
+    R.verbose $ (T.pack $ Tu.encodeString file) <> " is not in ignored list, handling."
+    inboxHandler'' nh
+
+inboxHandler'' :: NHFile -> R.Reddup ()
+inboxHandler'' nh@(NHFile (InboxDirTrackable inbox locSpec) file) = do
   reddup <- ask
   let config = R.reddupConfig reddup
   let run call = runReaderT call reddup
@@ -85,6 +95,21 @@ inboxHandler' nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
             putStrLn $ "input unrecognized: '" <> selection <>"'"
             Tu.sh $ run $ inboxHandler' nh
 
+isFileIgnored :: FilePath -> C.LocationSpec -> Bool
+isFileIgnored file locSpec =
+  let
+    ignored = ignoredFiles locSpec
+    dir = Tu.parent file
+    ignored' = (dir Tu.</>) <$> ignored
+  in
+    List.any (file ==) ignored'
+
+ignoredFiles :: C.LocationSpec -> [Tu.FilePath]
+ignoredFiles locSpec =
+  case locSpec of
+    C.GitLoc _loc -> []
+    C.InboxLoc _loc ignoredFiles ->
+      maybe [] ((Tu.fromString . T.unpack) <$>) ignoredFiles
 
 printMenuCustomCommands :: [C.InboxHandlerCommandSpec] -> IO ()
 printMenuCustomCommands ihcSpecs = do
