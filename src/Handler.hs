@@ -18,10 +18,10 @@ import qualified Reddup  as R
 import Control.Monad.Reader (ask, lift, runReaderT)
 
 inboxPrintHandler :: NHFile -> Tu.Shell ()
-inboxPrintHandler (NHFile inbox file) =
-  Tu.liftIO $ putStrLn $ T.unpack $ format
+inboxPrintHandler (NHFile (InboxDirTrackable inbox _locSpec) file) =
+  Tu.liftIO $ putStrLn $ T.unpack $ formatted
   where
-    format =
+    formatted =
       (pathToTextOrError inbox) <> ": file present " <> (pathToTextOrError file)
 
 inboxInteractiveHandler :: NHFile -> R.Reddup ()
@@ -29,7 +29,7 @@ inboxInteractiveHandler nh = do
   inboxHandler' nh
 
 inboxHandler' :: NHFile -> R.Reddup ()
-inboxHandler' nh@(NHFile inbox file) = do
+inboxHandler' nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
   reddup <- ask
   let config = R.reddupConfig reddup
   let run call = runReaderT call reddup
@@ -122,8 +122,9 @@ handleRename nh@(NHFile _inbox filePath) = do
           putStrLn $ "input unrecognized: '" <> renameSelection <>"'"
           Tu.sh $ run $ handleRename nh
 
+
 gitPrintHandler :: NHGit -> Tu.Shell ()
-gitPrintHandler (NHGit dir' nhg) =
+gitPrintHandler (NHGit (GitRepoTrackable dir' _locSpec) nhg) =
   Tu.liftIO $ putStrLn $ T.unpack $ format
   where
     format =

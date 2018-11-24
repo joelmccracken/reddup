@@ -19,10 +19,10 @@ import Control.Monad.Reader
 handleTrackable :: Trackable -> R.Reddup ()
 handleTrackable trackable = do
   case trackable of
-    (GitRepo repo) ->
-      handleGitTrackable repo >>= lift . H.gitPrintHandler
-    (InboxDir dir) ->
-      handleInboxTrackable dir >>= handleInbox
+    (GitRepo grTrack) ->
+      handleGitTrackable grTrack >>= lift . H.gitPrintHandler
+    (InboxDir idTrack) ->
+      handleInboxTrackable idTrack >>= handleInbox
 
 handleInbox ::  NHFile -> R.Reddup ()
 handleInbox nh = do
@@ -32,34 +32,34 @@ handleInbox nh = do
   else
     lift $ H.inboxPrintHandler nh
 
-handleGitTrackable :: GitRepoPath -> R.Reddup NHGit
-handleGitTrackable dir = do
+handleGitTrackable :: GitRepoTrackable -> R.Reddup NHGit
+handleGitTrackable grt@(GitRepoTrackable dir _locSpec)= do
   R.verbose $ "checking " <> (T.pack $ show dir)
   lift $ Tu.cd dir
   dirExists <- lift $ Tu.testdir ".git"
   if dirExists then
-    lift $ checkGitStatus dir
+    lift $ checkGitStatus grt
   else
-    lift $ return $ NHGit dir NHNotGitRepo
+    lift $ return $ NHGit grt NHNotGitRepo
 
-handleInboxTrackable :: Tu.FilePath -> R.Reddup NHFile
-handleInboxTrackable dir = do
+handleInboxTrackable :: InboxDirTrackable -> R.Reddup NHFile
+handleInboxTrackable idt@(InboxDirTrackable dir _locSpec)= do
   R.verbose $ "checking " <> pathToTextOrError dir
   lift $ Tu.cd dir
   let files = lift $ Tu.ls dir
-  files >>= (lift . return . NHFile dir)
+  files >>= (lift . return . NHFile idt)
 
 formatInboxTrackable :: Tu.FilePath -> Tu.FilePath -> T.Text
 formatInboxTrackable dir item =
   (pathToTextOrError dir) <> "/" <> (pathToTextOrError item) <> ": file present"
 
-checkGitStatus :: GitRepoPath -> Tu.Shell NHGit
-checkGitStatus repo = do
+checkGitStatus :: GitRepoTrackable -> Tu.Shell NHGit
+checkGitStatus grt = do
   (wrapUnpushed Git.unpushedGitBranches) Tu.<|>
     (wrapStatus Git.gitStatus)
   where
-    wrapStatus   = (NHGit repo <$> NHStatus <$>)
-    wrapUnpushed = (NHGit repo <$> NHUnpushedBranch <$>)
+    wrapStatus   = (NHGit grt <$> NHStatus <$>)
+    wrapUnpushed = (NHGit grt <$> NHUnpushedBranch <$>)
 
 configToTrackables :: R.Reddup Trackable
 configToTrackables = do
@@ -74,7 +74,7 @@ locationSpecToTrackable ls = do
   case ls of
     C.GitLoc location -> do
       path' <- (expand location)
-      return $ GitRepo path'
+      return $ GitRepo $ GitRepoTrackable path' ls
     C.InboxLoc location _foo -> do
       path' <- (expand location)
-      return $ InboxDir path'
+      return $ InboxDir $ InboxDirTrackable path' ls

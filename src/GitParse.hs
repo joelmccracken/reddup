@@ -6,7 +6,7 @@ import Turtle hiding ((<|>))
 
 data GitBranch
   = GitBranch Text
-  deriving (Show)
+  deriving (Show, Eq)
 
 data GitStatus
   = Added Text
@@ -17,7 +17,7 @@ data GitStatus
   | Untracked Text
   | Deleted Text
   | Unknown Text
-  deriving (Show)
+  deriving (Show, Eq)
 
 gitStatusLineParser :: Parsec.Parser GitStatus
 gitStatusLineParser = do
