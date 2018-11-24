@@ -85,7 +85,7 @@ inboxHandler'' nh@(NHFile (InboxDirTrackable inbox locSpec) file) = do
       "q" -> do
         Tu.sh $ Tu.exit Tu.ExitSuccess
       _ -> do
-        putStrLn $ show $ inboxHandlerCommands
+        Tu.sh $ run $ R.debug $ T.pack $ show $ inboxHandlerCommands
         let result = M.lookup (T.pack $ selection) inboxHandlerCommands
         case result of
           Just cmd -> Tu.sh $ do
