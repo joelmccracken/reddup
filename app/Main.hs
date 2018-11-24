@@ -33,14 +33,12 @@ main = Tu.sh $ do
   eitherConfig <- C.loadConfig
   configUnchecked <- extractConfig eitherConfig
   pconfig <- checkConfig' configUnchecked
-  let reddup = R.Reddup pconfig opts
+  let reddup = R.ReddupD pconfig opts
   runReaderT doIt reddup
 
-doIt :: R.ReddupT ()
+doIt :: R.Reddup ()
 doIt = do
-  reddup <- ask
-  let pconfig = R.reddupConfig reddup
-  let trackables = Track.configToTrackables pconfig
-  R.debug $ T.pack $ show reddup
-  Track.handleTrackables trackables
+  ask >>= (R.debug . T.pack . show)
+  trackable <- Track.configToTrackables
+  Track.handleTrackable trackable
   R.debug "done"

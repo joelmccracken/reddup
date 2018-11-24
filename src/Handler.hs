@@ -24,7 +24,7 @@ inboxPrintHandler (NHFile inbox file) =
     format =
       (pathToTextOrError inbox) <> ": file present " <> (pathToTextOrError file)
 
-inboxInteractiveHandler :: NHFile -> R.ReddupT ()
+inboxInteractiveHandler :: NHFile -> R.Reddup ()
 inboxInteractiveHandler nh = do
   reddup <- ask
   let config = R.reddupConfig reddup

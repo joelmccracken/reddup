@@ -16,11 +16,7 @@ import Trackable.Data
 import Trackable.Util
 import Control.Monad.Reader
 
-handleTrackables :: Tu.Shell Trackable -> ReaderT R.Reddup Tu.Shell ()
-handleTrackables trackables = do
-  (lift trackables) >>= handleTrackable
-
-handleTrackable :: Trackable -> ReaderT R.Reddup Tu.Shell ()
+handleTrackable :: Trackable -> R.Reddup ()
 handleTrackable trackable = do
   case trackable of
     (GitRepo repo) ->
@@ -28,7 +24,7 @@ handleTrackable trackable = do
     (InboxDir dir) ->
       handleInboxTrackable dir >>= handleInbox
 
-handleInbox ::  NHFile -> R.ReddupT ()
+handleInbox ::  NHFile -> R.Reddup ()
 handleInbox nh = do
   isInteractive <- R.isInteractive
   if isInteractive then
@@ -36,7 +32,7 @@ handleInbox nh = do
   else
     lift $ H.inboxPrintHandler nh
 
-handleGitTrackable :: GitRepoPath -> ReaderT R.Reddup Tu.Shell NHGit
+handleGitTrackable :: GitRepoPath -> R.Reddup NHGit
 handleGitTrackable dir = do
   R.verbose $ "checking " <> (T.pack $ show dir)
   lift $ Tu.cd dir
@@ -46,7 +42,7 @@ handleGitTrackable dir = do
   else
     lift $ return $ NHGit dir NHNotGitRepo
 
-handleInboxTrackable :: Tu.FilePath -> R.ReddupT NHFile
+handleInboxTrackable :: Tu.FilePath -> R.Reddup NHFile
 handleInboxTrackable dir = do
   R.verbose $ "checking " <> pathToTextOrError dir
   lift $ Tu.cd dir
@@ -65,10 +61,11 @@ checkGitStatus repo = do
     wrapStatus   = (NHGit repo <$> NHStatus <$>)
     wrapUnpushed = (NHGit repo <$> NHUnpushedBranch <$>)
 
-configToTrackables :: C.ProcessedConfig -> Tu.Shell Trackable
-configToTrackables conf = do
-  location <- Tu.select $ C.locations $ C.rawConfig conf
-  locationSpecToTrackable location
+configToTrackables :: R.Reddup Trackable
+configToTrackables = do
+  reddup <- ask
+  location <- lift $ Tu.select $ C.locations $ C.rawConfig $ R.reddupConfig reddup
+  lift $ locationSpecToTrackable location
 
 locationSpecToTrackable :: C.LocationSpec -> Tu.Shell Trackable
 locationSpecToTrackable ls = do

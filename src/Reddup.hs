@@ -7,14 +7,13 @@ import qualified Turtle as Tu
 import qualified System.IO as SIO
 import qualified Data.Text as T
 
-data Reddup =
-  Reddup
+data ReddupD =
+  ReddupD
   { reddupConfig  :: C.ProcessedConfig
   , reddupOptions :: O.Options
-  }
-  deriving (Eq, Show)
+  } deriving (Eq, Show)
 
-type ReddupT = ReaderT Reddup Tu.Shell
+type Reddup = ReaderT ReddupD Tu.Shell
 
 debug' :: O.Options -> T.Text -> Tu.Shell ()
 debug' opts txt =
@@ -23,13 +22,13 @@ debug' opts txt =
   else
     return ()
 
-debug :: T.Text -> ReddupT ()
+debug :: T.Text -> Reddup ()
 debug txt = do
   reddup <- ask
   let opts    = reddupOptions reddup
   lift $ debug' opts txt
 
-verbose :: T.Text -> ReddupT ()
+verbose :: T.Text -> Reddup ()
 verbose txt = do
   reddup <- ask
   let opts    = reddupOptions reddup
@@ -42,7 +41,7 @@ verbose' opts txt = do
   else
     return ()
 
-isInteractive :: ReddupT Bool
+isInteractive :: Reddup Bool
 isInteractive = do
   reddup <- ask
   let opts = reddupOptions reddup
