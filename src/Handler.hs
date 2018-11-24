@@ -15,7 +15,7 @@ import qualified ShellUtil
 import qualified Config as C
 import qualified Data.Map.Strict as M
 import qualified Reddup  as R
-import Control.Monad.Reader (ask, lift)
+import Control.Monad.Reader (ask, lift, runReaderT)
 
 inboxPrintHandler :: NHFile -> Tu.Shell ()
 inboxPrintHandler (NHFile inbox file) =
@@ -26,12 +26,13 @@ inboxPrintHandler (NHFile inbox file) =
 
 inboxInteractiveHandler :: NHFile -> R.Reddup ()
 inboxInteractiveHandler nh = do
+  inboxHandler' nh
+
+inboxHandler' :: NHFile -> R.Reddup ()
+inboxHandler' nh@(NHFile inbox file) = do
   reddup <- ask
   let config = R.reddupConfig reddup
-  lift $ inboxHandler' nh config
-
-inboxHandler' :: NHFile -> C.ProcessedConfig -> Tu.Shell ()
-inboxHandler' nh@(NHFile inbox file) config = do
+  let run call = runReaderT call reddup
   let
     fmtMsg =
       (pathToTextOrError inbox) <>
@@ -63,14 +64,14 @@ inboxHandler' nh@(NHFile inbox file) config = do
           destinationExists <- Tu.testfile file
           if destinationExists then do
             Tu.liftIO $ putStrLn "file still exists, continuing processing"
-            inboxHandler' nh config
+            run (inboxHandler' nh)
           else
             Tu.liftIO $ putStrLn "file no longer exists, continuing to next file"
       "n" ->
         putStrLn "going to next."
         -- just return from this handler, nothing left to do
       "r" ->
-        handleRename nh config
+        Tu.sh $ run $ handleRename nh
       "q" -> do
         Tu.sh $ Tu.exit Tu.ExitSuccess
       _ -> do
@@ -79,44 +80,47 @@ inboxHandler' nh@(NHFile inbox file) config = do
         case result of
           Just cmd -> Tu.sh $ do
             _ <- Tu.liftIO $ ShellUtil.shellCmdWithEnv (C.cmdSpecCmd cmd) envVars
-            inboxHandler' nh config
+            run $ inboxHandler' nh
           Nothing -> do
             putStrLn $ "input unrecognized: '" <> selection <>"'"
-            Tu.sh $ inboxHandler' nh config
+            Tu.sh $ run $ inboxHandler' nh
 
 
 printMenuCustomCommands :: [C.InboxHandlerCommandSpec] -> IO ()
 printMenuCustomCommands ihcSpecs = do
   foldr (>>) (return ()) ((putStrLn . T.unpack . C.cmdName) <$> ihcSpecs)
 
-handleRename :: NHFile -> C.ProcessedConfig -> IO ()
-handleRename nh@(NHFile _inbox filePath) config = do
-  putStrLn $ "renaming; original name " <> (T.unpack $ pathToTextOrError filePath)
-  putStr $ "Enter new name: "
-  IO.hFlush IO.stdout
-  newName <- getLine
-  let newPath = (Tu.directory filePath) Tu.</> (Tu.fromText $ T.pack newName)
-  destinationExists <- Tu.testfile newPath
-  if destinationExists then do
-    putStrLn "Error, destination exists. Choose another name."
-    handleRename nh config
-  else do
-    putStrLn $ "new name: " <> newName
-    putStrLn "(a)ccept new name"
-    putStrLn "(c)ancel renaming (go back to previous menu)"
-    putStrLn "(t)ry again (enter a new name)"
+handleRename :: NHFile -> R.Reddup ()
+handleRename nh@(NHFile _inbox filePath) = do
+  reddup <- ask
+  let run cmd = runReaderT cmd reddup
+  lift $ Tu.liftIO $ do
+    putStrLn $ "Renaming file. original name " <> (T.unpack $ pathToTextOrError filePath)
+    putStr $ "Enter new name: "
     IO.hFlush IO.stdout
-    renameSelection <- getLine
-    case renameSelection of
-      "a" -> do
-        Tu.sh $ Tu.mv filePath newPath
-      "c" ->
-        Tu.sh $ inboxHandler' nh config
-      "t" ->
-        handleRename nh config
-      _ -> do
-        putStrLn $ "input unrecognized: '" <> renameSelection <>"'"
-        handleRename nh config
+    newName <- getLine
+    let newPath = (Tu.directory filePath) Tu.</> (Tu.fromText $ T.pack newName)
+    destinationExists <- Tu.testfile newPath
+    if destinationExists then do
+      putStrLn "Error, destination exists. Choose another name."
+      Tu.sh $ run $ handleRename nh
+    else do
+      putStrLn $ "new name: " <> newName
+      putStrLn "(a)ccept new name"
+      putStrLn "(c)ancel renaming (go back to previous menu)"
+      putStrLn "(t)ry again (enter a new name)"
+      IO.hFlush IO.stdout
+      renameSelection <- getLine
+      case renameSelection of
+        "a" -> do
+          Tu.sh $ Tu.mv filePath newPath
+        "c" ->
+          Tu.sh $ run $ inboxHandler' nh
+        "t" ->
+          Tu.sh $ run $ handleRename nh
+        _ -> do
+          putStrLn $ "input unrecognized: '" <> renameSelection <>"'"
+          Tu.sh $ run $ handleRename nh
 
 gitPrintHandler :: NHGit -> Tu.Shell ()
 gitPrintHandler (NHGit dir' nhg) =

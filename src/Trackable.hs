@@ -71,12 +71,10 @@ locationSpecToTrackable :: C.LocationSpec -> Tu.Shell Trackable
 locationSpecToTrackable ls = do
   let expand location =
         (Tu.fromText . Tu.lineToText) <$> (ShellUtil.expandGlob location)
-
   case ls of
     C.GitLoc location -> do
       path' <- (expand location)
       return $ GitRepo path'
-
     C.InboxLoc location _foo -> do
       path' <- (expand location)
       return $ InboxDir path'
