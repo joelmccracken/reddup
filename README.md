@@ -61,7 +61,7 @@ repository to ensure that it is "tidy". It checks that there are:
 
 In non-interactive mode, it will will print these files for your inspection.
 
-In interactive mode (with `-i`), `reddup` will interactively help you reddup
+In interactive mode (with `-i`), `reddup` will interactively help you "reddup"
 the repository.
 
 Options include (all of these are TODO):
@@ -131,20 +131,3 @@ Currently, there is no binary installation available.
 # Enhancments
 
 Have any requests for functionality? Please file an issue. PRs welcome.
-
-# todo
-
-- not/verbose
-- handler, run predef command on file (e.g. open, etc)
-- inbox dir
-  - mv file to predefined location(s)
-  - rename
-  - delete
-- git
-  - unstaged changes
-    - commit everything with text WIP
-  - untracked files
-    - add and commit as WIP
-    - add to gitignore
-  - push any branch
-- also an exit for each of these
