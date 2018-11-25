@@ -42,20 +42,22 @@ inboxHandler'' :: NHFile -> R.Reddup ()
 inboxHandler'' nh@(NHFile (InboxDirTrackable inbox locSpec) file) = do
   reddup <- ask
   let config = R.reddupConfig reddup
-  let run call = runReaderT call reddup
+  let run = (flip runReaderT) reddup
   let
     fmtMsg =
       (pathToTextOrError inbox) <>
       ": file present " <>
       (pathToTextOrError file)
-    inboxHandlerCommands = C.inboxHandlerCommands config
-    envVars = [("FILE", Tu.encodeString file)]
+  let inboxHandlerCommands = C.inboxHandlerCommands config
+  let envVars = [("FILE", Tu.encodeString file)]
   Tu.liftIO $ do
     putStrLn $ T.unpack $ fmtMsg
     putStrLn "Action choices:"
     putStrLn "(d)elete"
     putStrLn "(r)ename file"
     putStrLn "open a (s)hell"
+    putStrLn "continue to (n)ext"
+    putStrLn "re(f)le to location"
     printMenuCustomCommands $ M.elems inboxHandlerCommands
     putStrLn "(q)uit"
     putStr "Selection: "
@@ -77,6 +79,8 @@ inboxHandler'' nh@(NHFile (InboxDirTrackable inbox locSpec) file) = do
             run (inboxHandler' nh)
           else
             Tu.liftIO $ putStrLn "file no longer exists, continuing to next file"
+      "f" -> do
+        Tu.sh $ run $ handleRefile nh
       "n" ->
         putStrLn "going to next."
         -- just return from this handler, nothing left to do
@@ -114,6 +118,44 @@ ignoredFiles locSpec =
 printMenuCustomCommands :: [C.InboxHandlerCommandSpec] -> IO ()
 printMenuCustomCommands ihcSpecs = do
   foldr (>>) (return ()) ((putStrLn . T.unpack . C.cmdName) <$> ihcSpecs)
+
+handleRefile :: NHFile -> R.Reddup ()
+handleRefile nh@(NHFile _inbox filePath) = do
+  undefined
+  -- reddup <- ask
+  -- let run cmd = runReaderT cmd reddup
+  -- lift $ Tu.liftIO $ do
+  --   putStrLn $ "Renaming file. original name " <> (T.unpack $ pathToTextOrError filePath)
+  --   putStr $ "Enter new name: "
+  --   IO.hFlush IO.stdout
+  --   newName <- getLine
+  --   let newPath = (Tu.directory filePath) Tu.</> (Tu.fromText $ T.pack newName)
+  --   destinationExists <- Tu.testfile newPath
+  --   if destinationExists then do
+  --     putStrLn "Error, destination exists. Choose another name."
+  --     Tu.sh $ run $ handleRefile nh
+  --   else do
+  --     putStrLn $ "new name: " <> newName
+  --     putStrLn "(a)ccept new name"
+  --     putStrLn "(c)ancel renaming (go back to previous menu)"
+  --     putStrLn "(t)ry again (enter a new name)"
+  --     IO.hFlush IO.stdout
+  --     refileSelection <- getLine
+  --     case refileSelection of
+  --       "a" -> do
+  --         Tu.sh $ Tu.mv filePath newPath
+  --       "c" ->
+  --         Tu.sh $ run $ inboxHandler' nh
+  --       "t" ->
+  --         Tu.sh $ run $ handleRefile nh
+  --       _ -> do
+  --         putStrLn $ "input unrecognized: '" <> refileSelection <>"'"
+  --         Tu.sh $ run $ handleRefile nh
+
+
+
+
+
 
 handleRename :: NHFile -> R.Reddup ()
 handleRename nh@(NHFile _inbox filePath) = do

@@ -18,10 +18,12 @@ data ProcessedConfig =
   ProcessedConfig
     { rawConfig :: Config
     , inboxHandlerCommands :: CustomHandlers
-    , inboxMvDestinations  :: CustomHandlers
+    , inboxRefileDests :: RefileDests
     } deriving (Eq, Show)
 
 type CustomHandlers = M.Map T.Text InboxHandlerCommandSpec
+
+type RefileDests = M.Map T.Text InboxHandlerRefileDestsSpec
 
 data Config =
   Config
@@ -41,8 +43,8 @@ data HandlerSpecs =
 
 data InboxHandlerSpec =
   InboxHandlerSpec
-    { commands :: [InboxHandlerCommandSpec]
-    , mv_destinations :: [InboxHandlerMvDestinationSpec]
+    { commands :: Maybe [InboxHandlerCommandSpec]
+    , refileDests :: Maybe [InboxHandlerRefileDestsSpec]
     } deriving (Eq, Show)
 
 data InboxHandlerCommandSpec =
@@ -52,8 +54,8 @@ data InboxHandlerCommandSpec =
     , cmdKey :: Text
     } deriving (Eq, Show)
 
-data InboxHandlerMvDestinationSpec =
-  InboxHandlerMvDestinationSpec
+data InboxHandlerRefileDestsSpec =
+  InboxHandlerRefileDestsSpec
     { mvDestName :: Text
     , dirChar :: Text
     , mvDestDir :: Text
@@ -85,8 +87,8 @@ instance FromJSON HandlerSpecs where
 instance FromJSON InboxHandlerSpec where
   parseJSON (Y.Object v) =
     InboxHandlerSpec <$>
-      v .: "commands" <*>
-      v .: "mv_destinations"
+      v .:? "commands" <*>
+      v .:? "refile_dests"
   parseJSON _ = fail "error parsing inbox handler spec"
 
 instance FromJSON InboxHandlerCommandSpec where
@@ -97,9 +99,9 @@ instance FromJSON InboxHandlerCommandSpec where
       v .: "key"
   parseJSON _ = fail "error parsing inbox handler command"
 
-instance FromJSON InboxHandlerMvDestinationSpec where
+instance FromJSON InboxHandlerRefileDestsSpec where
   parseJSON (Y.Object v) =
-    InboxHandlerMvDestinationSpec <$>
+    InboxHandlerRefileDestsSpec <$>
       v .: "name" <*>
       v .: "char" <*>
       v .: "dir"
@@ -120,10 +122,13 @@ data ConfigError
   deriving (Eq, Show)
 
 processInboxCommandHandlersConfig ::
-  [InboxHandlerCommandSpec] ->
+  Maybe [InboxHandlerCommandSpec] ->
   ([ConfigError], CustomHandlers)
-processInboxCommandHandlersConfig cmdSpecs =
+processInboxCommandHandlersConfig maybeCmdSpecs =
   let
+    cmdSpecs :: [InboxHandlerCommandSpec]
+    cmdSpecs = maybe [] id maybeCmdSpecs
+
     hasRightNumChars spec = (List.length $ T.unpack $ (cmdKey spec) ) > 0
 
     (rightNumCharsCmds,
@@ -141,23 +146,30 @@ processInboxCommandHandlersConfig cmdSpecs =
 processConfig :: Config -> Either [ConfigError] ProcessedConfig
 processConfig config =
   let
-    inboxHandlerCommands' :: [InboxHandlerCommandSpec]
+    inboxHandlerCommands' :: Maybe [InboxHandlerCommandSpec]
     inboxHandlerCommands' = commands $ inboxHandlers $ handlers config
-
     (ihcErrors, ihcSuccesses) = processInboxCommandHandlersConfig inboxHandlerCommands'
+
+    inboxRefileDests' :: Maybe [InboxHandlerRefileDestsSpec]
+    inboxRefileDests' = refileDests $ inboxHandlers $ handlers config
+    refileDests' = processRefileDests inboxRefileDests'
 
     allErrors = ihcErrors
 
     newConfig = ProcessedConfig
       { rawConfig = config
       , inboxHandlerCommands = ihcSuccesses
-      , inboxMvDestinations = M.empty
+      , inboxRefileDests = M.empty
       }
   in
     if List.length allErrors > 0 then
       Left allErrors
     else
       Right newConfig
+
+
+processRefileDests :: Maybe [InboxHandlerRefileDestsSpec] -> RefileDests
+processRefileDests refileDestSpecs = undefined
 
 configErrorsDisplay :: [ConfigError] -> Text
 configErrorsDisplay ce =
