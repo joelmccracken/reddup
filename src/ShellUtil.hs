@@ -11,6 +11,14 @@ expandGlob :: Text -> Tu.Shell Tu.Line
 expandGlob glob =
   Tu.inshell (concat ["for f in ", glob, "; do echo $f; done"] ) Tu.empty
 
+expandOne :: Text -> Tu.Shell (Maybe Tu.Line)
+expandOne glob =
+  let
+    useFirst = Tu.Fold (Tu.<|>) Nothing id
+    expansions = Just <$> (ShellUtil.expandGlob glob)
+  in
+    Tu.fold expansions useFirst
+
 type EnvVars = [(String, String)]
 
 mergeWithExistingEnv :: EnvVars -> IO EnvVars

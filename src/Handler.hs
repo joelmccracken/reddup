@@ -17,6 +17,7 @@ import qualified Data.Map.Strict as M
 import qualified Reddup  as R
 import Control.Monad.Reader (ask, lift, runReaderT, liftIO)
 import qualified Data.List as List
+import Data.Foldable (traverse_)
 
 inboxPrintHandler :: NHFile -> Tu.Shell ()
 inboxPrintHandler (NHFile (InboxDirTrackable inbox _locSpec) file) =
@@ -117,45 +118,75 @@ ignoredFiles locSpec =
 
 printMenuCustomCommands :: [C.InboxHandlerCommandSpec] -> IO ()
 printMenuCustomCommands ihcSpecs = do
-  foldr (>>) (return ()) ((putStrLn . T.unpack . C.cmdName) <$> ihcSpecs)
+  printStrings $ (T.unpack . C.cmdName) <$> ihcSpecs
+
+printRefileDests :: [C.InboxHandlerRefileDestSpec] -> IO ()
+printRefileDests refileDests = do
+  printStrings $ ( ("destination: " <>) . T.unpack . C.refileDestName) <$> refileDests
+
+printStrings :: [String] -> IO ()
+printStrings = traverse_ putStrLn
+
+lio = lift . liftIO
 
 handleRefile :: NHFile -> R.Reddup ()
-handleRefile nh@(NHFile _inbox filePath) = do
-  undefined
-  -- reddup <- ask
-  -- let run cmd = runReaderT cmd reddup
-  -- lift $ Tu.liftIO $ do
-  --   putStrLn $ "Renaming file. original name " <> (T.unpack $ pathToTextOrError filePath)
-  --   putStr $ "Enter new name: "
-  --   IO.hFlush IO.stdout
-  --   newName <- getLine
-  --   let newPath = (Tu.directory filePath) Tu.</> (Tu.fromText $ T.pack newName)
-  --   destinationExists <- Tu.testfile newPath
-  --   if destinationExists then do
-  --     putStrLn "Error, destination exists. Choose another name."
-  --     Tu.sh $ run $ handleRefile nh
-  --   else do
-  --     putStrLn $ "new name: " <> newName
-  --     putStrLn "(a)ccept new name"
-  --     putStrLn "(c)ancel renaming (go back to previous menu)"
-  --     putStrLn "(t)ry again (enter a new name)"
-  --     IO.hFlush IO.stdout
-  --     refileSelection <- getLine
-  --     case refileSelection of
-  --       "a" -> do
-  --         Tu.sh $ Tu.mv filePath newPath
-  --       "c" ->
-  --         Tu.sh $ run $ inboxHandler' nh
-  --       "t" ->
-  --         Tu.sh $ run $ handleRefile nh
-  --       _ -> do
-  --         putStrLn $ "input unrecognized: '" <> refileSelection <>"'"
-  --         Tu.sh $ run $ handleRefile nh
+handleRefile nh@(NHFile (InboxDirTrackable inbox locSpec) filePath) = do
+  reddup <- ask
+  let config = R.reddupConfig reddup
+  let inboxRefileDests' = C.inboxRefileDests config
+  let run cmd = runReaderT cmd reddup
 
+  lio $ putStrLn $ "Refiling " <> (T.unpack $ pathToTextOrError filePath)
+  lio $ putStrLn $ "Choose destination, or (q) to quit: "
+  lio $ printRefileDests $ M.elems inboxRefileDests'
 
+  dest <- T.pack <$> (lio $ getLine)
 
+  case dest of
+    "q" -> do
+      lio $ putStrLn "quitting."
+    _ -> do
+      let result = M.lookup dest inboxRefileDests'
+      case result of
+        Just target -> do
+          lio $ putStrLn $ show target
+          refileTo nh target
+        Nothing -> do
+          lio $ putStrLn $ "destination unrecognized: '" <> T.unpack dest <>"'"
+          handleRefile nh
 
+refileTo :: NHFile -> C.InboxHandlerRefileDestSpec -> R.Reddup ()
+refileTo nh@(NHFile _inboxTrackable filePath) refileDest = do
+  let filename = Tu.filename filePath
+  let destDirRaw = C.refileDestDir refileDest
+  let accessError = lio $ putStrLn $ "problem accessing directoy " <> T.unpack destDirRaw
+  mdestDir <- lift $ ShellUtil.expandOne destDirRaw
+  case mdestDir of
+    Just destDir -> do
+      let
+        destDirFP :: Tu.FilePath
+        destDirFP = Tu.fromString $ T.unpack $ Tu.lineToText $ destDir
+        newFilename = destDirFP Tu.</> filename
+      testResult <- lio $ Tu.testdir destDirFP
+      if testResult then do
+        R.debug $ "Moving to dest " <> (T.pack $ Tu.encodeString newFilename)
+        destExists <- Tu.testfile newFilename
+        if destExists then do
+          lio $ putStrLn "File currently exists at destination."
+          handleRefile nh
+        else do
+          Tu.mv filePath newFilename
+          -- TODO after the mv, need to understand what next thing to do is
+          -- (need to go to process where check to see if current file needs handled)
+          -- this is also specific to the file handler;
+          -- the git handler would be organized in a totally different way
 
+          -- TODO break into smaller modules, before working on the git handler break this apart
+          -- lots of code cleanup necessary
+      else do
+        accessError
+    Nothing -> do
+      accessError
 
 handleRename :: NHFile -> R.Reddup ()
 handleRename nh@(NHFile _inbox filePath) = do

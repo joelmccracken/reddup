@@ -23,7 +23,7 @@ data ProcessedConfig =
 
 type CustomHandlers = M.Map T.Text InboxHandlerCommandSpec
 
-type RefileDests = M.Map T.Text InboxHandlerRefileDestsSpec
+type RefileDests = M.Map T.Text InboxHandlerRefileDestSpec
 
 data Config =
   Config
@@ -44,7 +44,7 @@ data HandlerSpecs =
 data InboxHandlerSpec =
   InboxHandlerSpec
     { commands :: Maybe [InboxHandlerCommandSpec]
-    , refileDests :: Maybe [InboxHandlerRefileDestsSpec]
+    , refileDests :: Maybe [InboxHandlerRefileDestSpec]
     } deriving (Eq, Show)
 
 data InboxHandlerCommandSpec =
@@ -54,8 +54,8 @@ data InboxHandlerCommandSpec =
     , cmdKey :: Text
     } deriving (Eq, Show)
 
-data InboxHandlerRefileDestsSpec =
-  InboxHandlerRefileDestsSpec
+data InboxHandlerRefileDestSpec =
+  InboxHandlerRefileDestSpec
     { refileDestName :: Text
     , refileDestKey :: Text
     , refileDestDir :: Text
@@ -99,9 +99,9 @@ instance FromJSON InboxHandlerCommandSpec where
       v .: "key"
   parseJSON _ = fail "error parsing inbox handler command"
 
-instance FromJSON InboxHandlerRefileDestsSpec where
+instance FromJSON InboxHandlerRefileDestSpec where
   parseJSON (Y.Object v) =
-    InboxHandlerRefileDestsSpec <$>
+    InboxHandlerRefileDestSpec <$>
       v .: "name" <*>
       v .: "char" <*>
       v .: "dir"
@@ -118,7 +118,8 @@ loadConfig = do
   return ((Y.decodeEither configContents) :: Either String Config)
 
 data ConfigError
-  = KeyWrongNumCharsError InboxHandlerCommandSpec
+  = ErrorCmdHandlerKeyWrongNumChars InboxHandlerCommandSpec
+  | ErrorRefileDestKeyWrongNumChars InboxHandlerRefileDestSpec
   deriving (Eq, Show)
 
 processInboxCommandHandlers ::
@@ -135,7 +136,7 @@ processInboxCommandHandlers maybeCmdSpecs =
      wrongNumCharsCmds) = List.partition hasRightNumChars cmdSpecs
 
     errors =
-      (KeyWrongNumCharsError <$> wrongNumCharsCmds)
+      (ErrorCmdHandlerKeyWrongNumChars <$> wrongNumCharsCmds)
 
     toPair spec = (cmdKey spec, spec)
 
@@ -150,16 +151,16 @@ processConfig config =
     inboxHandlerCommands' = commands $ inboxHandlers $ handlers config
     (ihcErrors, ihcSuccesses) = processInboxCommandHandlers inboxHandlerCommands'
 
-    inboxRefileDests' :: Maybe [InboxHandlerRefileDestsSpec]
+    inboxRefileDests' :: Maybe [InboxHandlerRefileDestSpec]
     inboxRefileDests' = refileDests $ inboxHandlers $ handlers config
-    refileDests' = processRefileDests inboxRefileDests'
+    (refileErrors, refileDests') = processRefileDests inboxRefileDests'
 
-    allErrors = ihcErrors
+    allErrors = ihcErrors ++ refileErrors
 
     newConfig = ProcessedConfig
       { rawConfig = config
       , inboxHandlerCommands = ihcSuccesses
-      , inboxRefileDests = M.empty
+      , inboxRefileDests = refileDests'
       }
   in
     if List.length allErrors > 0 then
@@ -171,25 +172,25 @@ moreThanOneChar :: String -> Bool
 moreThanOneChar str =
   List.length str > 0
 
-processRefileDests :: Maybe [InboxHandlerRefileDestsSpec] -> RefileDests
+processRefileDests :: Maybe [InboxHandlerRefileDestSpec] -> ([ConfigError], RefileDests)
 processRefileDests maybeRefileDestSpecs =
   let
-    refileSpecs :: [InboxHandlerRefileDestsSpec]
+    refileSpecs :: [InboxHandlerRefileDestSpec]
     refileSpecs = maybe [] id maybeRefileDestSpecs
 
-    hasRightNumChars :: InboxHandlerRefileDestsSpec -> Bool
+    hasRightNumChars :: InboxHandlerRefileDestSpec -> Bool
     hasRightNumChars spec = moreThanOneChar $ T.unpack $ refileDestKey spec
 
     (rightNumCharsCmds,
      wrongNumCharsCmds) = List.partition hasRightNumChars refileSpecs
 
-    errors = KeyWrongNumCharsError <$> wrongNumCharsCmds
+    errors = ErrorRefileDestKeyWrongNumChars <$> wrongNumCharsCmds
 
     toPair spec = (refileDestKey spec, spec)
 
     successes = toPair <$> rightNumCharsCmds
   in
-    (errors, M.fromList successes )
+    (errors, M.fromList successes)
 
 configErrorsDisplay :: [ConfigError] -> Text
 configErrorsDisplay ce =
@@ -198,7 +199,7 @@ configErrorsDisplay ce =
 configErrorDisplay :: ConfigError -> Text
 configErrorDisplay ce =
   case ce of
-    KeyWrongNumCharsError handlerSpec ->
+    ErrorCmdHandlerKeyWrongNumChars handlerSpec ->
       let
         cmdName' = T.pack $ show $ cmdName handlerSpec
         cmdKey' = T.pack $ show $ cmdKey handlerSpec
@@ -208,3 +209,13 @@ configErrorDisplay ce =
         ", key value is " <>
         cmdKey' <>
         ", key must be at least one character long.\n"
+    ErrorRefileDestKeyWrongNumChars handlerSpec ->
+      let
+        name = T.pack $ show $ refileDestName handlerSpec
+        key = T.pack $ show $ refileDestKey handlerSpec
+      in
+        "key for refile destination " <>
+        name <>
+        ", key value is " <>
+        key <>
+        ", key must be at least one character long."
