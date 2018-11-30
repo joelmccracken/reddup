@@ -127,6 +127,7 @@ printRefileDests refileDests = do
 printStrings :: [String] -> IO ()
 printStrings = traverse_ putStrLn
 
+lio :: IO a -> R.Reddup a
 lio = lift . liftIO
 
 handleRefile :: NHFile -> R.Reddup ()
