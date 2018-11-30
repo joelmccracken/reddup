@@ -11,17 +11,20 @@ import qualified Reddup  as R
 import Control.Monad.Reader (ask, lift, runReaderT, liftIO)
 import qualified Git
 
+-- lio :: IO a -> R.Reddup a
+-- lio = lift . liftIO
+
 gitHandler :: NHGit -> R.Reddup ()
 gitHandler nh@(NHGit (GitRepoTrackable dir' _locSpec) nhg) = do
   isInteractive <- R.isInteractive
   if isInteractive then
-    lift $ gitPrintHandler nh
+    gitPrintHandler nh
   else
-    lift $ gitPrintHandler nh
+    gitPrintHandler nh
 
-gitPrintHandler :: NHGit -> Tu.Shell ()
+gitPrintHandler :: NHGit -> R.Reddup ()
 gitPrintHandler (NHGit (GitRepoTrackable dir' _locSpec) nhg) =
-  Tu.liftIO $ putStrLn $ T.unpack $ format
+  liftIO $ putStrLn $ T.unpack $ format
   where
     format =
       let dir = pathToTextOrError dir' in

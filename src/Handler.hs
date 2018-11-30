@@ -135,9 +135,6 @@ printRefileDests refileDests = do
 printStrings :: [String] -> IO ()
 printStrings = traverse_ putStrLn
 
-lio :: IO a -> R.Reddup a
-lio = lift . liftIO
-
 handleRefile :: NHFile -> R.Reddup ()
 handleRefile nh@(NHFile (InboxDirTrackable inbox locSpec) filePath) = do
   reddup <- ask
@@ -145,15 +142,15 @@ handleRefile nh@(NHFile (InboxDirTrackable inbox locSpec) filePath) = do
   let inboxRefileDests' = C.inboxRefileDests config
   let run cmd = runReaderT cmd reddup
 
-  lio $ putStrLn $ "Refiling " <> (T.unpack $ pathToTextOrError filePath)
-  lio $ putStrLn $ "Choose destination, or (q) to quit: "
-  lio $ printRefileDests $ M.elems inboxRefileDests'
+  liftIO $ putStrLn $ "Refiling " <> (T.unpack $ pathToTextOrError filePath)
+  liftIO $ putStrLn $ "Choose destination, or (q) to quit: "
+  liftIO $ printRefileDests $ M.elems inboxRefileDests'
 
-  dest <- T.pack <$> (lio $ getLine)
+  dest <- T.pack <$> (liftIO $ getLine)
 
   case dest of
     "q" -> do
-      lio $ putStrLn "quitting."
+      liftIO $ putStrLn "quitting."
     _ -> do
       let result = M.lookup dest inboxRefileDests'
       case result of
@@ -161,14 +158,14 @@ handleRefile nh@(NHFile (InboxDirTrackable inbox locSpec) filePath) = do
           R.debug $ T.pack $ show target
           refileTo nh target
         Nothing -> do
-          lio $ putStrLn $ "destination unrecognized: '" <> T.unpack dest <>"'"
+          liftIO $ putStrLn $ "destination unrecognized: '" <> T.unpack dest <>"'"
           handleRefile nh
 
 refileTo :: NHFile -> C.InboxHandlerRefileDestSpec -> R.Reddup ()
 refileTo nh@(NHFile _inboxTrackable filePath) refileDest = do
   let filename = Tu.filename filePath
   let destDirRaw = C.refileDestDir refileDest
-  let accessError = lio $ putStrLn $ "problem accessing directoy " <> T.unpack destDirRaw
+  let accessError = liftIO $ putStrLn $ "problem accessing directoy " <> T.unpack destDirRaw
   mdestDir <- lift $ ShellUtil.expandOne destDirRaw
   case mdestDir of
     Just destDir -> do
@@ -176,12 +173,12 @@ refileTo nh@(NHFile _inboxTrackable filePath) refileDest = do
         destDirFP :: Tu.FilePath
         destDirFP = Tu.fromString $ T.unpack $ Tu.lineToText $ destDir
         newFilename = destDirFP Tu.</> filename
-      testResult <- lio $ Tu.testdir destDirFP
+      testResult <- liftIO $ Tu.testdir destDirFP
       if testResult then do
         R.debug $ "Moving to dest " <> (T.pack $ Tu.encodeString newFilename)
         destExists <- Tu.testfile newFilename
         if destExists then do
-          lio $ putStrLn "File currently exists at destination."
+          liftIO $ putStrLn "File currently exists at destination."
           handleRefile nh
         else do
           Tu.mv filePath newFilename
