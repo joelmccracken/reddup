@@ -190,7 +190,7 @@ refileTo nh@(NHFile _inboxTrackable filePath) refileDest = do
       accessError
 
 handleRename :: NHFile -> R.Reddup ()
-handleRename nh@(NHFile _inbox filePath) = do
+handleRename nh@(NHFile inbox filePath) = do
   reddup <- ask
   let run cmd = runReaderT cmd reddup
   lift $ Tu.liftIO $ do
@@ -212,7 +212,10 @@ handleRename nh@(NHFile _inbox filePath) = do
       renameSelection <- getLine
       case renameSelection of
         "a" -> do
-          Tu.sh $ Tu.mv filePath newPath
+          Tu.sh $ do
+            Tu.mv filePath newPath
+            let nh' = NHFile inbox newPath
+            run $ inboxHandler' nh'
         "c" ->
           Tu.sh $ run $ inboxHandler' nh
         "t" ->
