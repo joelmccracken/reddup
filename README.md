@@ -91,8 +91,12 @@ locations:
     location: ~/Projects/*
   - type: inbox
     location: ~/Desktop
+    ignored_files:
+      - .DS_Store
   - type: inbox
     location: ~/Inbox
+    ignored_files:
+      - .DS_Store
 handlers:
   inbox:
     commands:
@@ -102,10 +106,19 @@ handlers:
       - name: open (e)nclosing dir
         cmd: open .
         key: e
-    mv_destinations:
+    refile_dests:
       - name: (b)ooks
         char: b
         dir: ~/Nextcloud/books
+      - name: (p)apers
+        char: p
+        dir: ~/Nextcloud/papers
+      - name: p(r)ivate
+        char: r
+        dir: ~/Nextcloud/private
+      - name: (f)unny
+        char: f
+        dir: ~/Nextcloud/funny
 ```
 
 # Installation
