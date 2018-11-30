@@ -150,7 +150,7 @@ handleRefile nh@(NHFile (InboxDirTrackable inbox locSpec) filePath) = do
       let result = M.lookup dest inboxRefileDests'
       case result of
         Just target -> do
-          lio $ putStrLn $ show target
+          R.debug $ T.pack $ show target
           refileTo nh target
         Nothing -> do
           lio $ putStrLn $ "destination unrecognized: '" <> T.unpack dest <>"'"
