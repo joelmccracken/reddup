@@ -11,6 +11,7 @@ import Data.Monoid ((<>))
 import qualified ShellUtil
 import qualified Config as C
 import qualified Handler as H
+import qualified Handler.Git as HG
 import qualified Reddup  as R
 import Trackable.Data
 import Trackable.Util
@@ -20,20 +21,12 @@ handleTrackable :: Trackable -> R.Reddup ()
 handleTrackable trackable = do
   case trackable of
     (GitRepo grTrack) ->
-      handleGitTrackable grTrack >>= lift . H.gitPrintHandler
+      processGitTrackable grTrack >>= HG.gitHandler
     (InboxDir idTrack) ->
-      handleInboxTrackable idTrack >>= handleInbox
+      processInboxTrackable idTrack >>= H.handleInbox
 
-handleInbox ::  NHFile -> R.Reddup ()
-handleInbox nh = do
-  isInteractive <- R.isInteractive
-  if isInteractive then
-    H.inboxInteractiveHandler nh
-  else
-    lift $ H.inboxPrintHandler nh
-
-handleGitTrackable :: GitRepoTrackable -> R.Reddup NHGit
-handleGitTrackable grt@(GitRepoTrackable dir _locSpec)= do
+processGitTrackable :: GitRepoTrackable -> R.Reddup NHGit
+processGitTrackable grt@(GitRepoTrackable dir _locSpec)= do
   R.verbose $ "checking " <> (T.pack $ show dir)
   lift $ Tu.cd dir
   dirExists <- lift $ Tu.testdir ".git"
@@ -42,8 +35,16 @@ handleGitTrackable grt@(GitRepoTrackable dir _locSpec)= do
   else
     lift $ return $ NHGit grt NHNotGitRepo
 
-handleInboxTrackable :: InboxDirTrackable -> R.Reddup NHFile
-handleInboxTrackable idt@(InboxDirTrackable dir _locSpec)= do
+checkGitStatus :: GitRepoTrackable -> Tu.Shell NHGit
+checkGitStatus grt = do
+  (wrapUnpushed Git.unpushedGitBranches) Tu.<|>
+    (wrapStatus Git.gitStatus)
+  where
+    wrapStatus   = (NHGit grt <$> NHStatus <$>)
+    wrapUnpushed = (NHGit grt <$> NHUnpushedBranch <$>)
+
+processInboxTrackable :: InboxDirTrackable -> R.Reddup NHFile
+processInboxTrackable idt@(InboxDirTrackable dir _locSpec)= do
   R.verbose $ "checking " <> pathToTextOrError dir
   lift $ Tu.cd dir
   let files = lift $ Tu.ls dir
@@ -52,14 +53,6 @@ handleInboxTrackable idt@(InboxDirTrackable dir _locSpec)= do
 formatInboxTrackable :: Tu.FilePath -> Tu.FilePath -> T.Text
 formatInboxTrackable dir item =
   (pathToTextOrError dir) <> "/" <> (pathToTextOrError item) <> ": file present"
-
-checkGitStatus :: GitRepoTrackable -> Tu.Shell NHGit
-checkGitStatus grt = do
-  (wrapUnpushed Git.unpushedGitBranches) Tu.<|>
-    (wrapStatus Git.gitStatus)
-  where
-    wrapStatus   = (NHGit grt <$> NHStatus <$>)
-    wrapUnpushed = (NHGit grt <$> NHUnpushedBranch <$>)
 
 configToTrackables :: R.Reddup Trackable
 configToTrackables = do
