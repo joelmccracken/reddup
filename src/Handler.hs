@@ -25,11 +25,15 @@ handleInbox nh = do
   if isInteractive then
     inboxInteractiveHandler nh
   else
-    lift $ inboxPrintHandler nh
+    inboxPrintHandler nh
 
-inboxPrintHandler :: NHFile -> Tu.Shell ()
-inboxPrintHandler (NHFile (InboxDirTrackable inbox _locSpec) file) =
-  Tu.liftIO $ putStrLn $ T.unpack $ formatted
+inboxPrintHandler :: NHFile -> R.Reddup ()
+inboxPrintHandler (NHFile (InboxDirTrackable inbox locSpec) file) = do
+  let isIgnored = isFileIgnored file locSpec
+  if isIgnored then do
+    return ()
+  else
+    liftIO $ putStrLn $ T.unpack $ formatted
   where
     formatted =
       (pathToTextOrError inbox) <> ": file present " <> (pathToTextOrError file)

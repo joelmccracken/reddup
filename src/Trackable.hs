@@ -5,7 +5,7 @@ module Trackable where
 import qualified Data.Text as T
 import Prelude hiding (FilePath, concat)
 import qualified Turtle as Tu
-import qualified Git as Git
+import qualified Git
 -- import qualified System.IO as SIO
 import Data.Monoid ((<>))
 import qualified ShellUtil
@@ -21,27 +21,9 @@ handleTrackable :: Trackable -> R.Reddup ()
 handleTrackable trackable = do
   case trackable of
     (GitRepo grTrack) ->
-      processGitTrackable grTrack >>= HG.gitHandler
+      HG.gitHandler' grTrack
     (InboxDir idTrack) ->
       processInboxTrackable idTrack >>= H.handleInbox
-
-processGitTrackable :: GitRepoTrackable -> R.Reddup NHGit
-processGitTrackable grt@(GitRepoTrackable dir _locSpec)= do
-  R.verbose $ "checking " <> (T.pack $ show dir)
-  lift $ Tu.cd dir
-  dirExists <- lift $ Tu.testdir ".git"
-  if dirExists then
-    lift $ checkGitStatus grt
-  else
-    lift $ return $ NHGit grt NHNotGitRepo
-
-checkGitStatus :: GitRepoTrackable -> Tu.Shell NHGit
-checkGitStatus grt = do
-  (wrapUnpushed Git.unpushedGitBranches) Tu.<|>
-    (wrapStatus Git.gitStatus)
-  where
-    wrapStatus   = (NHGit grt <$> NHStatus <$>)
-    wrapUnpushed = (NHGit grt <$> NHUnpushedBranch <$>)
 
 processInboxTrackable :: InboxDirTrackable -> R.Reddup NHFile
 processInboxTrackable idt@(InboxDirTrackable dir _locSpec)= do
