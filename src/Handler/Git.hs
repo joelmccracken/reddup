@@ -28,7 +28,7 @@ gitHandler' grt@(GitRepoTrackable dir _locSpec) = do
   else
     errorNotGitRepo grt
 
-numShell :: Shell a -> boolean
+numShell :: Tu.Shell a -> Tu.Shell Int
 numShell sh = Tu.fold sh L.length
 
 
@@ -40,30 +40,77 @@ processGitInteractive grt@(GitRepoTrackable dir _locSpec) = do
 
   numStatus <- lift $ numShell gitStatus
   numUnpushed <- lift $ numShell gitUnpushed
+  let numIssues = numStatus + numUnpushed
 
-
-
-  numStatus <- lift $ Tu.fold (checkGitStatus grt) L.length
   R.verbose $ T.pack $ Tu.encodeString dir <> " issues " <> show numIssues
-  -- go to next if no problems with this repo
-  guard $ numIssues > 0
 
+  if numStatus > 0 then
+    processGitWorkDir grt
+  else
+    return ()
 
-  let gitStatus = checkGitStatus grt
-  numIssues <- lift $ Tu.fold (checkGitProblems grt) L.length
+  if numUnpushed > 0 then
+    processGitUnpushed grt
+    -- liftIO $ putStrLn $ "TODO implmeent processing pushing branches! num branches needing help: " <> show numUnpushed
+  else
+    return ()
 
+processGitWorkDir :: GitRepoTrackable -> R.Reddup ()
+processGitWorkDir grt@(GitRepoTrackable dir _locSpec) = do
+  reddup <- ask
+  let
+    run :: R.Reddup () -> IO ()
+    run = Tu.sh . (flip runReaderT) reddup
 
-  processGitInteractive' grt
+  -- TODO show summary of issues
+  -- E.g. "working directory" or "index" or "working dir AND index" <> "has issues"
+  liftIO $ do
+    putStrLn "Actions:"
+    putStrLn "open a (s)hell"
+    putStrLn "git (d)iff (diff of working dir and index)"
+    putStrLn "git d(i)ff --cached (diff of index and HEAD)"
+    putStrLn "git s(t)atus"
+    putStrLn "(w)ip commit (`git add .; git commit -m 'WIP'` )"
+    putStrLn "continue to (n)ext item"
+    putStrLn "(q)uit"
+    putStr "Choice: "
+    IO.hFlush IO.stdout
+    selection <- getLine
+    case selection of
+      "s" -> do
+        putStrLn "Starting bash. Reddup will continue when subshell exits."
+        ShellUtil.openInteractiveShell []
+        run $ processGitInteractive grt
+      "d" -> do
+        Tu.sh $ Tu.shell "git diff" Tu.empty
+        run $ processGitInteractive grt
+      "n" ->
+        putStrLn "continuing to next."
+      "i" -> do
+        Tu.sh $ Tu.shell "git diff --cached" Tu.empty
+        run $ processGitInteractive grt
+      "t" -> do
+        Tu.sh $ Tu.shell "git status" Tu.empty
+        run $ processGitInteractive grt
+      "w" -> do
+        Tu.sh $ Tu.inshell "git add .; git commit -m 'WIP'" Tu.empty
+        run $ processGitInteractive grt
+      "q" -> do
+        Tu.sh $ Tu.exit Tu.ExitSuccess
+      _ -> do
+        putStrLn $ "input unrecognized: '" <> selection <>"'"
+        run $ processGitInteractive grt
 
-processGitInteractive' :: GitRepoTrackable -> R.Reddup ()
-processGitInteractive' grt@(GitRepoTrackable dir _locSpec) = do
-  R.verbose $ T.pack $ "Git Repo: " <> Tu.encodeString dir
-  numIssues <- lift $ Tu.fold (checkGitProblems grt) L.length
-  R.verbose $ T.pack $ Tu.encodeString dir <> " issues " <> show numIssues
-  -- go to next if no problems with this repo
-  guard $ numIssues > 0
+processGitUnpushed :: GitRepoTrackable -> R.Reddup ()
+processGitUnpushed grt@(GitRepoTrackable dir _locSpec) = do
+  -- R.verbose $ T.pack $ "Git Repo: " <> Tu.encodeString dir
+  -- numIssues <- lift $ Tu.fold (checkGitProblems grt) L.length
+  -- R.verbose $ T.pack $ Tu.encodeString dir <> " issues " <> show numIssues
+  -- -- go to next if no problems with this repo
+  -- guard $ numIssues > 0
 
-  liftIO $ putStrLn $ "Git Repo: " <> Tu.encodeString dir <> " issues " <> show numIssues
+  -- liftIO $ putStrLn $ "Git Repo: " <> Tu.encodeString dir <> " issues " <> show numIssues
+  liftIO $ putStrLn $ "TODO implmeent processing pushing branches! num branches needing help: " <> show numUnpushed
 
   reddup <- ask
 
@@ -110,7 +157,6 @@ processGitInteractive' grt@(GitRepoTrackable dir _locSpec) = do
         putStrLn $ "input unrecognized: '" <> selection <>"'"
         run $ processGitInteractive grt
   -- lift $ Git.unpushedGitBranches >>= (liftIO . putStrLn . show)
-
 
 
 

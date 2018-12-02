@@ -79,8 +79,7 @@ inboxHandler'' nh@(NHFile (InboxDirTrackable inbox locSpec) file) = do
     case selection of
       "d" -> do
         putStrLn "deleting."
-        Tu.sh $ do
-          Tu.rm file
+        Tu.sh $ Tu.rm file
       "s" -> do
         putStrLn "Starting bash. Reddup will continue when subshell exits."
         putStrLn "Filename available in shell as $FILE."
