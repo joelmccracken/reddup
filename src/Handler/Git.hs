@@ -13,6 +13,7 @@ import qualified Git
 import qualified Control.Foldl as L
 import qualified System.IO as IO
 import qualified ShellUtil
+import Data.Maybe (listToMaybe)
 
 gitHandler' :: GitRepoTrackable -> R.Reddup ()
 gitHandler' grt@(GitRepoTrackable dir _locSpec) = do
@@ -31,27 +32,27 @@ gitHandler' grt@(GitRepoTrackable dir _locSpec) = do
 numShell :: Tu.Shell a -> Tu.Shell Int
 numShell sh = Tu.fold sh L.length
 
-
 processGitInteractive :: GitRepoTrackable -> R.Reddup ()
 processGitInteractive grt@(GitRepoTrackable dir _locSpec) = do
   R.verbose $ T.pack $ "Git Repo: " <> Tu.encodeString dir
   let gitStatus = checkGitStatus grt
-  let gitUnpushed = checkGitUnpushed grt
+  let gitUnpushed = Git.unpushedGitBranches
 
   numStatus <- lift $ numShell gitStatus
-  numUnpushed <- lift $ numShell gitUnpushed
-  let numIssues = numStatus + numUnpushed
 
-  R.verbose $ T.pack $ Tu.encodeString dir <> " issues " <> show numIssues
+  let gitStatus = checkGitStatus grt
+  numStatus <- lift $ numShell gitStatus
 
   if numStatus > 0 then
     processGitWorkDir grt
   else
     return ()
 
+  let gitUnpushed = Git.unpushedGitBranches
+  numUnpushed <- lift $ numShell Git.unpushedGitBranches
+
   if numUnpushed > 0 then
-    processGitUnpushed grt
-    -- liftIO $ putStrLn $ "TODO implmeent processing pushing branches! num branches needing help: " <> show numUnpushed
+    processGitUnpushed grt gitUnpushed
   else
     return ()
 
@@ -62,8 +63,11 @@ processGitWorkDir grt@(GitRepoTrackable dir _locSpec) = do
     run :: R.Reddup () -> IO ()
     run = Tu.sh . (flip runReaderT) reddup
 
-  -- TODO show summary of issues
-  -- E.g. "working directory" or "index" or "working dir AND index" <> "has issues"
+  liftIO $ putStrLn $
+    "Git repo " <>
+    Tu.encodeString dir <>
+    ": workdir dirty "
+
   liftIO $ do
     putStrLn "Actions:"
     putStrLn "open a (s)hell"
@@ -101,32 +105,41 @@ processGitWorkDir grt@(GitRepoTrackable dir _locSpec) = do
         putStrLn $ "input unrecognized: '" <> selection <>"'"
         run $ processGitInteractive grt
 
-processGitUnpushed :: GitRepoTrackable -> R.Reddup ()
-processGitUnpushed grt@(GitRepoTrackable dir _locSpec) = do
-  -- R.verbose $ T.pack $ "Git Repo: " <> Tu.encodeString dir
-  -- numIssues <- lift $ Tu.fold (checkGitProblems grt) L.length
-  -- R.verbose $ T.pack $ Tu.encodeString dir <> " issues " <> show numIssues
-  -- -- go to next if no problems with this repo
-  -- guard $ numIssues > 0
-
-  -- liftIO $ putStrLn $ "Git Repo: " <> Tu.encodeString dir <> " issues " <> show numIssues
-  liftIO $ putStrLn $ "TODO implmeent processing pushing branches! num branches needing help: " <> show numUnpushed
-
+processGitUnpushed :: GitRepoTrackable -> Tu.Shell GP.GitBranch -> R.Reddup ()
+processGitUnpushed grt@(GitRepoTrackable dir _locSpec) branchShell = do
   reddup <- ask
 
   let
     run :: R.Reddup () -> IO ()
     run = Tu.sh . (flip runReaderT) reddup
 
-  -- TODO show summary of issues
-  -- E.g. "working directory" or "index" or "working dir AND index" <> "has issues"
+  branch@(GP.GitBranch branchName) <- lift $ branchShell
+
+  bl <- Tu.fold Git.unpushedGitBranches L.list
+
+  guard $ elem branch bl
+
+  liftIO $ putStrLn $
+    "Git repo " <>
+    Tu.encodeString dir <>
+    ": unpushed branch "  <>
+    T.unpack branchName
+
+  target <- lift $ readPushTarget branch
+  merge <- lift $ readMerge branch
+
+  let targetAndMerge = (,) <$> target <*> merge
+
+  let unrecognized selection = do
+        putStrLn $ "input unrecognized: '" <> selection <>"'"
+        run $ processGitInteractive grt
+
   liftIO $ do
+    putStrLn "target"
+    putStrLn $ show target
     putStrLn "Actions:"
     putStrLn "open a (s)hell"
-    putStrLn "git (d)iff (diff of working dir and index)"
-    putStrLn "git d(i)ff --cached (diff of index and HEAD)"
-    putStrLn "git s(t)atus"
-    putStrLn "(w)ip commit (`git add .; git commit -m 'WIP'` )"
+    gitPushLabel branchName targetAndMerge
     putStrLn "continue to (n)ext item"
     putStrLn "(q)uit"
     putStr "Choice: "
@@ -137,30 +150,59 @@ processGitUnpushed grt@(GitRepoTrackable dir _locSpec) = do
         putStrLn "Starting bash. Reddup will continue when subshell exits."
         ShellUtil.openInteractiveShell []
         run $ processGitInteractive grt
-      "d" -> do
-        Tu.sh $ Tu.shell "git diff" Tu.empty
-        run $ processGitInteractive grt
       "n" ->
         putStrLn "continuing to next."
-      "i" -> do
-        Tu.sh $ Tu.shell "git diff --cached" Tu.empty
-        run $ processGitInteractive grt
-      "t" -> do
-        Tu.sh $ Tu.shell "git status" Tu.empty
-        run $ processGitInteractive grt
-      "w" -> do
-        Tu.sh $ Tu.inshell "git add .; git commit -m 'WIP'" Tu.empty
-        run $ processGitInteractive grt
+      "p" -> do
+        gitPushCmd branchName targetAndMerge (unrecognized selection)
       "q" -> do
         Tu.sh $ Tu.exit Tu.ExitSuccess
       _ -> do
-        putStrLn $ "input unrecognized: '" <> selection <>"'"
-        run $ processGitInteractive grt
-  -- lift $ Git.unpushedGitBranches >>= (liftIO . putStrLn . show)
+        unrecognized selection
 
+readPushTarget :: GP.GitBranch -> Tu.Shell (Maybe T.Text)
+readPushTarget branch = do
+  pr <- readPushRemote branch
+  r  <- readRemote branch
+  return $ pr Tu.<|> r
 
+readGitConfig :: T.Text -> Tu.Shell (Maybe T.Text)
+readGitConfig cmd = do
+  mConfigOutput <- ShellUtil.firstShell $ Tu.inshell cmd Tu.empty
+  return $ Tu.lineToText <$> mConfigOutput
 
+readRemote :: GP.GitBranch -> Tu.Shell (Maybe T.Text)
+readRemote (GP.GitBranch branchName) = do
+  let command = "git config branch." <> branchName <> ".remote || true"
+  readGitConfig command
 
+readPushRemote :: GP.GitBranch -> Tu.Shell (Maybe T.Text)
+readPushRemote (GP.GitBranch branchName) = do
+  let command = "git config branch." <> branchName <> ".pushRemote || true"
+  readGitConfig command
+
+readMerge :: GP.GitBranch -> Tu.Shell (Maybe T.Text)
+readMerge (GP.GitBranch branchName) = do
+  let command = "git config branch." <> branchName <> ".merge || true"
+  readGitConfig command
+
+gitPushLabel :: T.Text -> Maybe (T.Text, T.Text) -> IO ()
+gitPushLabel branchName =
+  maybe unavailable (uncurry available)
+  where
+    unavailable =
+      putStrLn "(git push not available, pushremote and/or merge configuration not set)"
+    available target merge =
+      putStrLn $ "git (p)ush " <> T.unpack target <> " " <> T.unpack branchName <> ":" <> T.unpack merge
+
+gitPushCmd :: T.Text -> Maybe (T.Text, T.Text) -> IO () -> IO ()
+gitPushCmd branchName targetAndMerge unrecognized =
+  case targetAndMerge of
+    Just (target, merge) ->
+      let
+        cmd = "git push -v " <> target <> " " <> branchName <> ":" <> merge
+      in
+        Tu.sh $ Tu.shell cmd Tu.empty
+    Nothing -> unrecognized
 
 checkGitProblems :: GitRepoTrackable -> Tu.Shell NHGit
 checkGitProblems grt = do

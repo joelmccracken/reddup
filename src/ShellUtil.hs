@@ -11,13 +11,18 @@ expandGlob :: Text -> Tu.Shell Tu.Line
 expandGlob glob =
   Tu.inshell (concat ["for f in ", glob, "; do echo $f; done"] ) Tu.empty
 
-expandOne :: Text -> Tu.Shell (Maybe Tu.Line)
-expandOne glob =
+-- returns the first item in a shell
+-- seems like there should be a better way
+firstShell :: Tu.Shell a -> Tu.Shell (Maybe a)
+firstShell shell =
   let
     useFirst = Tu.Fold (Tu.<|>) Nothing id
-    expansions = Just <$> (ShellUtil.expandGlob glob)
   in
-    Tu.fold expansions useFirst
+    Tu.fold (Just <$> shell) useFirst
+
+expandOne :: Text -> Tu.Shell (Maybe Tu.Line)
+expandOne glob =
+  firstShell $ expandGlob glob
 
 type EnvVars = [(String, String)]
 

@@ -4,7 +4,7 @@ import Data.Text
 import Text.ParserCombinators.Parsec as Parsec
 import Turtle hiding ((<|>))
 
-data GitBranch
+newtype GitBranch
   = GitBranch Text
   deriving (Show, Eq)
 
