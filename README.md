@@ -140,6 +140,6 @@ Currently, there is no binary installation available.
     `export PATH="~/.local/bin:$PATH"` to the end of your `~/.bashrc` and/or
     `~/.bash_profile` files).
 
-# Enhancments
+# Enhancements
 
 Have any requests for functionality? Please file an issue. PRs welcome.
