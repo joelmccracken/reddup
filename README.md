@@ -1,10 +1,9 @@
 # Reddup
 
-A program to help keep things tidy. It is currently in active development. Some
-of the claims made in this README may not yet be quite accurate, but many are.
-If you'd like to use it, contact me via issues or email
-(mccracken.joel@gmail.com) and I will let you know if it should work for your
-use case.
+A program to help keep things tidy.
+
+This should be considered alpha quality. If you have any questions, feel free to
+use issues or send an email.
 
 ## Overview
 
