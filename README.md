@@ -63,14 +63,12 @@ In non-interactive mode, it will will print these files for your inspection.
 In interactive mode (with `-i`), `reddup` will interactively help you "reddup"
 the repository.
 
-Options include (all of these are TODO):
+Options include:
 
-- Committing all changes (deleted, staged, unstaged, untracked) as a WIP commit (TODO)
-- Push any branch that are unpushed.
-- Push any branch that is unpushed to a new branch.
-- Run any ad-hoc commands entered (TODO)
-- Running custom commands defined in the configuration file (WIP)
-
+- Committing all changes (deleted, staged, unstaged, untracked).
+- Push any branch that are unpushed to upstream.
+- Run any ad-hoc commands entered.
+- Running custom commands defined in the configuration file.
 
 # Configuration
 
