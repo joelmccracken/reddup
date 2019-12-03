@@ -5,7 +5,6 @@ module Trackable where
 import qualified Data.Text as T
 import Prelude hiding (FilePath, concat)
 import qualified Turtle as Tu
-import qualified Git
 -- import qualified System.IO as SIO
 import Data.Monoid ((<>))
 import qualified ShellUtil

@@ -12,9 +12,6 @@ import qualified Options as O
 import qualified Reddup  as R
 import Control.Monad.Reader
 
-import qualified ShellUtil
-import qualified Data.Maybe as M
-
 extractConfig :: Either String C.Config -> Tu.Shell C.Config
 extractConfig eitherConfig =
   let

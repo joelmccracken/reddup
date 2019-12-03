@@ -2,7 +2,6 @@
 
 module Handler where
 
-import qualified GitParse as GP
 import qualified Data.Text as T
 import Prelude hiding (FilePath, concat)
 import qualified Turtle as Tu
@@ -43,7 +42,7 @@ inboxInteractiveHandler nh = do
   inboxHandler' nh
 
 inboxHandler' :: NHFile -> R.Reddup ()
-inboxHandler' nh@(NHFile (InboxDirTrackable inbox locSpec) file) = do
+inboxHandler' nh@(NHFile (InboxDirTrackable _inbox locSpec) file) = do
   let isIgnored = isFileIgnored file locSpec
   if isIgnored then
     R.verbose $ (T.pack $ Tu.encodeString file) <> " is in ignored list. skipping."
@@ -52,7 +51,7 @@ inboxHandler' nh@(NHFile (InboxDirTrackable inbox locSpec) file) = do
     inboxHandler'' nh
 
 inboxHandler'' :: NHFile -> R.Reddup ()
-inboxHandler'' nh@(NHFile (InboxDirTrackable inbox locSpec) file) = do
+inboxHandler'' nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
   reddup <- ask
   let config = R.reddupConfig reddup
   let run = (flip runReaderT) reddup
@@ -124,8 +123,8 @@ ignoredFiles :: C.LocationSpec -> [Tu.FilePath]
 ignoredFiles locSpec =
   case locSpec of
     C.GitLoc _loc -> []
-    C.InboxLoc _loc ignoredFiles ->
-      maybe [] ((Tu.fromString . T.unpack) <$>) ignoredFiles
+    C.InboxLoc _loc ignoredFiles' ->
+      maybe [] ((Tu.fromString . T.unpack) <$>) ignoredFiles'
 
 printMenuCustomCommands :: [C.InboxHandlerCommandSpec] -> IO ()
 printMenuCustomCommands ihcSpecs = do
@@ -139,11 +138,10 @@ printStrings :: [String] -> IO ()
 printStrings = traverse_ putStrLn
 
 handleRefile :: NHFile -> R.Reddup ()
-handleRefile nh@(NHFile (InboxDirTrackable inbox locSpec) filePath) = do
+handleRefile nh@(NHFile _ filePath) = do
   reddup <- ask
   let config = R.reddupConfig reddup
   let inboxRefileDests' = C.inboxRefileDests config
-  let run cmd = runReaderT cmd reddup
 
   liftIO $ putStrLn $ "Refiling " <> (T.unpack $ pathToTextOrError filePath)
   liftIO $ putStrLn $ "Choose destination, or (q) to quit: "

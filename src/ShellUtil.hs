@@ -9,7 +9,8 @@ import qualified System.Process as SP
 
 expandGlob :: Text -> Tu.Shell Tu.Line
 expandGlob glob =
-  Tu.inshell (concat ["for f in ", glob, "; do echo $f; done"] ) Tu.empty
+  Tu.inshell ("for f in " <> glob <> "; do echo $f; done") Tu.empty
+
 
 -- returns the first item in a shell
 -- seems like there should be a better way
