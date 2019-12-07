@@ -2,24 +2,21 @@
 
 module ShellUtil where
 
-import Prelude hiding (FilePath, concat)
+import Prelude hiding (FilePath)
 import qualified Turtle as Tu
 import Data.Text
 import qualified System.Process as SP
+import qualified Control.Foldl as CF
 
 expandGlob :: Text -> Tu.Shell Tu.Line
 expandGlob glob =
   Tu.inshell ("for f in " <> glob <> "; do echo $f; done") Tu.empty
 
-
 -- returns the first item in a shell
 -- seems like there should be a better way
 firstShell :: Tu.Shell a -> Tu.Shell (Maybe a)
 firstShell shell =
-  let
-    useFirst = Tu.Fold (Tu.<|>) Nothing id
-  in
-    Tu.fold (Just <$> shell) useFirst
+  Tu.fold shell CF.head
 
 expandOne :: Text -> Tu.Shell (Maybe Tu.Line)
 expandOne glob =

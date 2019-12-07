@@ -141,6 +141,7 @@ handleRefile :: NHFile -> R.Reddup ()
 handleRefile nh@(NHFile _ filePath) = do
   reddup <- ask
   let config = R.reddupConfig reddup
+  liftIO $ putStrLn $ show config
   let inboxRefileDests' = C.inboxRefileDests config
 
   liftIO $ putStrLn $ "Refiling " <> (T.unpack $ pathToTextOrError filePath)
@@ -183,13 +184,6 @@ refileTo nh@(NHFile _inboxTrackable filePath) refileDest = do
           handleRefile nh
         else do
           Tu.mv filePath newFilename
-          -- TODO after the mv, need to understand what next thing to do is
-          -- (need to go to process where check to see if current file needs handled)
-          -- this is also specific to the file handler;
-          -- the git handler would be organized in a totally different way
-
-          -- TODO break into smaller modules, before working on the git handler break this apart
-          -- lots of code cleanup necessary
       else do
         accessError
     Nothing -> do

@@ -48,11 +48,11 @@ processGitInteractive grt@(GitRepoTrackable dir _locSpec) = do
   else
     return ()
 
-  let gitUnpushed = Git.unpushedGitBranches
+  let gitUnpushed' = Git.unpushedGitBranches
   numUnpushed <- lift $ numShell Git.unpushedGitBranches
 
   if numUnpushed > 0 then
-    processGitUnpushed grt gitUnpushed
+    processGitUnpushed grt gitUnpushed'
   else
     return ()
 

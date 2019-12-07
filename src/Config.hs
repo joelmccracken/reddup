@@ -13,6 +13,7 @@ import qualified System.IO as SIO
 import qualified ShellUtil
 import qualified Data.Map.Strict as M
 import qualified Data.List as List
+import qualified Data.Bifunctor as BF
 
 data ProcessedConfig =
   ProcessedConfig
@@ -114,8 +115,8 @@ loadConfig :: Tu.Shell (Either String Config)
 loadConfig = do
   configFilename <- getConfigFilename
   configContents <- Tu.liftIO $ (BS.readFile configFilename :: IO BS.ByteString)
-  -- TODO change this to decodeEither'
-  return ((Y.decodeEither configContents) :: Either String Config)
+  let eresults = Y.decodeEither' configContents :: Either Y.ParseException Config
+  return (BF.first Y.prettyPrintParseException eresults)
 
 data ConfigError
   = ErrorCmdHandlerKeyWrongNumChars InboxHandlerCommandSpec
