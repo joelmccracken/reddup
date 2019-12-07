@@ -13,7 +13,6 @@ import qualified Git
 import qualified Control.Foldl as L
 import qualified System.IO as IO
 import qualified ShellUtil
-import Data.Maybe (listToMaybe)
 
 gitHandler' :: GitRepoTrackable -> R.Reddup ()
 gitHandler' grt@(GitRepoTrackable dir _locSpec) = do
@@ -36,11 +35,7 @@ processGitInteractive :: GitRepoTrackable -> R.Reddup ()
 processGitInteractive grt@(GitRepoTrackable dir _locSpec) = do
   R.verbose $ T.pack $ "Git Repo: " <> Tu.encodeString dir
   let gitStatus = checkGitStatus grt
-  let gitUnpushed = Git.unpushedGitBranches
 
-  numStatus <- lift $ numShell gitStatus
-
-  let gitStatus = checkGitStatus grt
   numStatus <- lift $ numShell gitStatus
 
   if numStatus > 0 then
@@ -48,11 +43,12 @@ processGitInteractive grt@(GitRepoTrackable dir _locSpec) = do
   else
     return ()
 
-  let gitUnpushed' = Git.unpushedGitBranches
+  let gitUnpushed = Git.unpushedGitBranches
+
   numUnpushed <- lift $ numShell Git.unpushedGitBranches
 
   if numUnpushed > 0 then
-    processGitUnpushed grt gitUnpushed'
+    processGitUnpushed grt gitUnpushed
   else
     return ()
 
