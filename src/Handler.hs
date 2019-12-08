@@ -5,7 +5,6 @@ module Handler where
 import qualified Data.Text as T
 import Prelude hiding (FilePath, concat)
 import qualified Turtle as Tu
--- import qualified System.IO as SIO
 import Data.Monoid ((<>))
 import Trackable.Data
 import Trackable.Util
@@ -39,27 +38,26 @@ inboxPrintHandler (NHFile (InboxDirTrackable inbox locSpec) file) = do
 
 inboxInteractiveHandler :: NHFile -> R.Reddup ()
 inboxInteractiveHandler nh = do
-  inboxHandler' nh
+  inboxInteractiveHandler nh
 
-inboxHandler' :: NHFile -> R.Reddup ()
-inboxHandler' nh@(NHFile (InboxDirTrackable _inbox locSpec) file) = do
+inboxInteractiveHandler :: NHFile -> R.Reddup ()
+inboxInteractiveHandler nh@(NHFile (InboxDirTrackable _inbox locSpec) file) = do
   let isIgnored = isFileIgnored file locSpec
   if isIgnored then
     R.verbose $ (T.pack $ Tu.encodeString file) <> " is in ignored list. skipping."
   else do
     R.verbose $ (T.pack $ Tu.encodeString file) <> " is not in ignored list, handling."
-    inboxHandler'' nh
+    inboxHandlerMenu nh
 
-inboxHandler'' :: NHFile -> R.Reddup ()
-inboxHandler'' nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
+inboxHandlerMenu :: NHFile -> R.Reddup ()
+inboxHandlerMenu nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
   reddup <- ask
   let config = R.reddupConfig reddup
   let run = (flip runReaderT) reddup
-  let
-    fmtMsg =
-      (pathToTextOrError inbox) <>
-      ": file present " <>
-      (pathToTextOrError file)
+  let fmtMsg =
+        (pathToTextOrError inbox) <>
+        ": file present " <>
+        (pathToTextOrError file)
   let inboxHandlerCommands = C.inboxHandlerCommands config
   let envVars = [("FILE", Tu.encodeString file)]
   Tu.liftIO $ do
@@ -87,13 +85,13 @@ inboxHandler'' nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
           destinationExists <- Tu.testfile file
           if destinationExists then do
             Tu.liftIO $ putStrLn "file still exists, continuing processing"
-            run (inboxHandler' nh)
+            run (inboxInteractiveHandler nh)
           else
             Tu.liftIO $ putStrLn "file no longer exists, continuing to next file"
       "f" -> do
         Tu.sh $ run $ handleRefile nh
       "n" ->
-        putStrLn "going to next."
+        putStrLn "continuing to to next item."
         -- just return from this handler, nothing left to do
       "r" ->
         Tu.sh $ run $ handleRename nh
@@ -105,10 +103,10 @@ inboxHandler'' nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
         case result of
           Just cmd -> Tu.sh $ do
             _ <- Tu.liftIO $ ShellUtil.shellCmdWithEnv (C.cmdSpecCmd cmd) envVars
-            run $ inboxHandler' nh
+            run $ inboxInteractiveHandler nh
           Nothing -> do
             putStrLn $ "input unrecognized: '" <> selection <>"'"
-            Tu.sh $ run $ inboxHandler' nh
+            Tu.sh $ run $ inboxInteractiveHandler nh
 
 isFileIgnored :: FilePath -> C.LocationSpec -> Bool
 isFileIgnored file locSpec =
@@ -215,9 +213,9 @@ handleRename nh@(NHFile inbox filePath) = do
           Tu.sh $ do
             Tu.mv filePath newPath
             let nh' = NHFile inbox newPath
-            run $ inboxHandler' nh'
+            run $ inboxInteractiveHandler nh'
         "c" ->
-          Tu.sh $ run $ inboxHandler' nh
+          Tu.sh $ run $ inboxInteractiveHandler nh
         "t" ->
           Tu.sh $ run $ handleRename nh
         _ -> do
