@@ -66,4 +66,4 @@ packages:
 # compiler-check: newer-minor
 
 ghc-options:
-  "$locals": -Wall
+  "$locals": -Wall -Werror -Wwarn=missing-local-signatures
