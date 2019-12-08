@@ -213,26 +213,25 @@ checkGitUnpushed grt =
   NHGit grt <$> NHUnpushedBranch <$> Git.unpushedGitBranches
 
 gitPrintHandler :: NHGit -> R.Reddup ()
-gitPrintHandler (NHGit (GitRepoTrackable dir' _locSpec) nhg) =
+gitPrintHandler (NHGit (GitRepoTrackable dir' _locSpec) nhg) = do
+  dir <- lift $ pathToTextOrError dir'
+  let formatPath :: T.Text -> T.Text -> T.Text -> T.Text
+      formatPath path statusItem label =
+        path <> ": " <> label <> " '" <> statusItem  <> "'"
+      format =
+        case nhg of
+          NHStatus (GP.Added f) -> formatPath dir f "file added"
+          NHStatus (GP.AddedAndModified f) -> formatPath dir f "file added and modified"
+          NHStatus (GP.Staged f) -> formatPath dir f "staged changes"
+          NHStatus (GP.Unstaged f) -> formatPath dir f "unstaged changes"
+          NHStatus (GP.StagedAndUnstaged f) -> formatPath dir f "staged and unstaged changes"
+          NHStatus (GP.Untracked f) -> formatPath dir f "untracked file"
+          NHStatus (GP.Deleted f) -> formatPath dir f "file deleted"
+          NHStatus (GP.Unknown f) -> formatPath dir f "(unknown git status)"
+          NHUnpushedBranch (GP.GitBranch branchName) ->
+            dir <> ": Unpushed branch '" <> branchName <> "'"
+          NHNotGitRepo -> dir <> ": is not a git repo"
   liftIO $ putStrLn $ T.unpack $ format
-  where
-    format =
-      let dir = pathToTextOrError dir' in
-      case nhg of
-        NHStatus (GP.Added f) -> formatPath dir f "file added"
-        NHStatus (GP.AddedAndModified f) -> formatPath dir f "file added and modified"
-        NHStatus (GP.Staged f) -> formatPath dir f "staged changes"
-        NHStatus (GP.Unstaged f) -> formatPath dir f "unstaged changes"
-        NHStatus (GP.StagedAndUnstaged f) -> formatPath dir f "staged and unstaged changes"
-        NHStatus (GP.Untracked f) -> formatPath dir f "untracked file"
-        NHStatus (GP.Deleted f) -> formatPath dir f "file deleted"
-        NHStatus (GP.Unknown f) -> formatPath dir f "(unknown git status)"
-        NHUnpushedBranch (GP.GitBranch branchName) ->
-          dir <> ": Unpushed branch '" <> branchName <> "'"
-        NHNotGitRepo -> dir <> ": is not a git repo"
-    formatPath :: T.Text -> T.Text -> T.Text -> T.Text
-    formatPath path statusItem label =
-      path <> ": " <> label <> " '" <> statusItem  <> "'"
 
 processGitNonInteractive :: GitRepoTrackable -> R.Reddup  ()
 processGitNonInteractive grTrack =

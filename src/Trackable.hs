@@ -2,7 +2,6 @@
 
 module Trackable where
 
-import qualified Data.Text as T
 import Prelude hiding (FilePath, concat)
 import qualified Turtle as Tu
 -- import qualified System.IO as SIO
@@ -26,14 +25,11 @@ handleTrackable trackable = do
 
 processInboxTrackable :: InboxDirTrackable -> R.Reddup NHFile
 processInboxTrackable idt@(InboxDirTrackable dir _locSpec)= do
-  R.verbose $ "checking " <> pathToTextOrError dir
+  dir' <- lift $ pathToTextOrError dir
+  R.verbose $ "checking " <>  dir'
   lift $ Tu.cd dir
   let files = lift $ Tu.ls dir
   files >>= (lift . return . NHFile idt)
-
-formatInboxTrackable :: Tu.FilePath -> Tu.FilePath -> T.Text
-formatInboxTrackable dir item =
-  (pathToTextOrError dir) <> "/" <> (pathToTextOrError item) <> ": file present"
 
 configToTrackables :: R.Reddup Trackable
 configToTrackables = do

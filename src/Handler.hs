@@ -5,6 +5,7 @@ module Handler where
 import qualified Data.Text as T
 import Prelude hiding (FilePath, concat)
 import qualified Turtle as Tu
+import Turtle ((</>))
 import Data.Monoid ((<>))
 import Trackable.Data
 import Trackable.Util
@@ -28,13 +29,13 @@ handleInbox nh = do
 inboxPrintHandler :: NHFile -> R.Reddup ()
 inboxPrintHandler (NHFile (InboxDirTrackable inbox locSpec) file) = do
   let isIgnored = isFileIgnored file locSpec
+  inbox' <- lift $ pathToTextOrError inbox
+  file' <- lift $ pathToTextOrError file
+  let formatted = inbox' <> ": file present " <> file'
   if isIgnored then do
     return ()
   else
     liftIO $ putStrLn $ T.unpack $ formatted
-  where
-    formatted =
-      (pathToTextOrError inbox) <> ": file present " <> (pathToTextOrError file)
 
 inboxInteractiveHandler :: NHFile -> R.Reddup ()
 inboxInteractiveHandler nh@(NHFile (InboxDirTrackable _inbox locSpec) file) = do
@@ -50,10 +51,9 @@ inboxHandlerMenu nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
   reddup <- ask
   let config = R.reddupConfig reddup
   let run = (flip runReaderT) reddup
-  let fmtMsg =
-        (pathToTextOrError inbox) <>
-        ": file present " <>
-        (pathToTextOrError file)
+  inbox' <- lift $ pathToTextOrError inbox
+  file' <- lift $ pathToTextOrError file
+  let fmtMsg = inbox' <> ": file present " <> file'
   let inboxHandlerCommands = C.inboxHandlerCommands config
   let envVars = [("FILE", Tu.encodeString file)]
   Tu.liftIO $ do
@@ -109,7 +109,7 @@ isFileIgnored file locSpec =
   let
     ignored = ignoredFiles locSpec
     dir = Tu.parent file
-    ignored' = (dir Tu.</>) <$> ignored
+    ignored' = (dir </>) <$> ignored
   in
     List.any (file ==) ignored'
 
@@ -137,8 +137,8 @@ handleRefile nh@(NHFile _ filePath) = do
   let config = R.reddupConfig reddup
   liftIO $ putStrLn $ show config
   let inboxRefileDests' = C.inboxRefileDests config
-
-  liftIO $ putStrLn $ "Refiling " <> (T.unpack $ pathToTextOrError filePath)
+  filePath' <- lift $ pathToTextOrError filePath
+  liftIO $ putStrLn $ "Refiling " <> (T.unpack filePath' )
   liftIO $ putStrLn $ "Choose destination, or (q) to quit: "
   liftIO $ printRefileDests $ M.elems inboxRefileDests'
 
@@ -168,7 +168,7 @@ refileTo nh@(NHFile _inboxTrackable filePath) refileDest = do
       let
         destDirFP :: Tu.FilePath
         destDirFP = Tu.fromString $ T.unpack $ Tu.lineToText $ destDir
-        newFilename = destDirFP Tu.</> filename
+        newFilename = destDirFP </> filename
       testResult <- liftIO $ Tu.testdir destDirFP
       if testResult then do
         R.debug $ "Moving to dest " <> (T.pack $ Tu.encodeString newFilename)
@@ -187,12 +187,13 @@ handleRename :: NHFile -> R.Reddup ()
 handleRename nh@(NHFile inbox filePath) = do
   reddup <- ask
   let run cmd = runReaderT cmd reddup
+  filePath' <- lift $ pathToTextOrError filePath
   lift $ Tu.liftIO $ do
-    putStrLn $ "Renaming file. original name " <> (T.unpack $ pathToTextOrError filePath)
+    putStrLn $ "Renaming file. original name " <> (T.unpack filePath')
     putStr $ "Enter new name: "
     IO.hFlush IO.stdout
     newName <- getLine
-    let newPath = (Tu.directory filePath) Tu.</> (Tu.fromText $ T.pack newName)
+    let newPath = (Tu.directory filePath) </> (Tu.fromText $ T.pack newName)
     destinationExists <- Tu.testfile newPath
     if destinationExists then do
       putStrLn "Error, destination exists. Choose another name."

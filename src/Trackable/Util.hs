@@ -1,14 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ExistentialQuantification #-}
 
 module Trackable.Util where
 
 import qualified Turtle as Tu
 import qualified Data.Text as T
-import Data.Monoid ((<>))
+import Control.Exception.Base
+import Control.Monad.Catch
 
-pathToTextOrError ::  Tu.FilePath -> T.Text
+
+data NoStringConversion = NoStringConversion T.Text
+  deriving (Show)
+
+instance Exception NoStringConversion
+
+pathToTextOrError ::  Tu.FilePath -> Tu.Shell T.Text
 pathToTextOrError path =
   case (Tu.toText path) of
     Left l ->
-      "(Error decoding path; approximation: " <> l <> ")"
-    Right r -> r
+      throwM $ NoStringConversion l
+    Right r -> pure r
