@@ -37,10 +37,6 @@ inboxPrintHandler (NHFile (InboxDirTrackable inbox locSpec) file) = do
       (pathToTextOrError inbox) <> ": file present " <> (pathToTextOrError file)
 
 inboxInteractiveHandler :: NHFile -> R.Reddup ()
-inboxInteractiveHandler nh = do
-  inboxInteractiveHandler nh
-
-inboxInteractiveHandler :: NHFile -> R.Reddup ()
 inboxInteractiveHandler nh@(NHFile (InboxDirTrackable _inbox locSpec) file) = do
   let isIgnored = isFileIgnored file locSpec
   if isIgnored then
