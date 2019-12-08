@@ -39,11 +39,12 @@ inboxPrintHandler (NHFile (InboxDirTrackable inbox locSpec) file) = do
 
 inboxInteractiveHandler :: NHFile -> R.Reddup ()
 inboxInteractiveHandler nh@(NHFile (InboxDirTrackable _inbox locSpec) file) = do
+  file' <- lift $ pathToTextOrError file
   let isIgnored = isFileIgnored file locSpec
   if isIgnored then
-    R.verbose $ (T.pack $ Tu.encodeString file) <> " is in ignored list. skipping."
+    R.verbose $ file' <> " is in ignored list. skipping."
   else do
-    R.verbose $ (T.pack $ Tu.encodeString file) <> " is not in ignored list, handling."
+    R.verbose $ file' <> " is not in ignored list, handling."
     inboxHandlerMenu nh
 
 inboxHandlerMenu :: NHFile -> R.Reddup ()
