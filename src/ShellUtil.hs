@@ -17,8 +17,6 @@ expandGlob glob =
   in
     Tu.inshell script Tu.empty
 
--- returns the first item in a shell
--- seems like there should be a better way
 firstShell :: Tu.Shell a -> Tu.Shell (Maybe a)
 firstShell shell =
   Tu.fold shell CF.head
