@@ -28,7 +28,7 @@ mergeWithExistingEnv :: EnvVars -> IO EnvVars
 mergeWithExistingEnv adtlVars = do
   let unpack' kv = (unpack $ fst kv, unpack $ snd kv)
   e <- Tu.env
-  return (adtlVars ++ (unpack' <$> e))
+  return ((unpack' <$> e) ++ adtlVars)
 
 openInteractiveShell :: EnvVars -> IO ()
 openInteractiveShell adtlVars = do
@@ -44,6 +44,7 @@ shellCmdWithEnv :: Text -> EnvVars -> IO ()
 shellCmdWithEnv cmd adtlVars = do
   let handler _ _ _ p = SP.waitForProcess p
   envVars <- mergeWithExistingEnv adtlVars
+
   let cmd' = (SP.shell (unpack cmd)) {
         SP.delegate_ctlc = True,
         SP.env = Just envVars }
