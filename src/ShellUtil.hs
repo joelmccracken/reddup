@@ -10,7 +10,10 @@ import qualified Control.Foldl as CF
 
 expandGlob :: Text -> Tu.Shell Tu.Line
 expandGlob glob =
-  Tu.inshell ("for f in " <> glob <> "; do echo $f; done") Tu.empty
+  let
+    script = "for f in " <> glob <> "; do if [[ -f \"$f\" ]]; then  echo $f; fi; done"
+  in
+    Tu.inshell script Tu.empty
 
 -- returns the first item in a shell
 -- seems like there should be a better way
