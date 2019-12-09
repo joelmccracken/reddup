@@ -3,6 +3,7 @@
 module Handler where
 
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import Prelude hiding (FilePath, concat)
 import qualified Turtle as Tu
 import Turtle ((</>))
@@ -35,7 +36,7 @@ inboxPrintHandler (NHFile (InboxDirTrackable inbox locSpec) file) = do
   if isIgnored then do
     return ()
   else
-    liftIO $ putStrLn $ T.unpack $ formatted
+    liftIO $ TIO.putStrLn $ formatted
 
 inboxInteractiveHandler :: NHFile -> R.Reddup ()
 inboxInteractiveHandler nh@(NHFile (InboxDirTrackable _inbox locSpec) file) = do
