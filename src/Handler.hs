@@ -52,13 +52,11 @@ inboxHandlerMenu :: NHFile -> R.Reddup ()
 inboxHandlerMenu nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
   reddup <- ask
   let config = R.reddupConfig reddup
-  let run = (flip runReaderT) reddup
   inbox' <- lift $ pathToTextOrError inbox
   file' <- lift $ pathToTextOrError file
   let fmtMsg = inbox' <> ": file present " <> file'
   let inboxHandlerCommands = C.inboxHandlerCommands config
   Tu.echo $ Tu.fromString $ Tu.encodeString file
-  let envVars = [("FILE", Tu.encodeString file)]
   selection <- Tu.liftIO $ do
     putStrLn $ T.unpack $ fmtMsg
     putStrLn "Action choices:"
@@ -77,16 +75,7 @@ inboxHandlerMenu nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
       Tu.echo "deleting."
       Tu.rm file
     "s" -> do
-      Tu.echo "Starting bash. Reddup will continue when subshell exits."
-      Tu.echo "Filename available in shell as $FILE."
-      Tu.liftIO $ ShellUtil.openInteractiveShell envVars
-      Tu.sh $ do
-        destinationExists <- Tu.testfile file
-        if destinationExists then do
-          Tu.echo "file still exists, continuing processing"
-          run (inboxInteractiveHandler nh)
-        else
-          Tu.echo "file no longer exists, continuing to next file"
+      inboxHandlerShell nh
     "f" -> do
       handleRefile nh
     "n" ->
@@ -100,12 +89,26 @@ inboxHandlerMenu nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
       R.debug $ T.pack $ show $ inboxHandlerCommands
       let result = M.lookup (T.pack $ selection) inboxHandlerCommands
       case result of
-        Just cmd -> Tu.sh $ do
+        Just cmd -> do
+          let envVars = [("FILE", Tu.encodeString file)]
           _ <- Tu.liftIO $ ShellUtil.shellCmdWithEnv (C.cmdSpecCmd cmd) envVars
-          run $ inboxInteractiveHandler nh
+          inboxInteractiveHandler nh
         Nothing -> do
           Tu.echo $ Tu.fromString $ "input unrecognized: '" <> selection <>"'"
-          Tu.sh $ run $ inboxInteractiveHandler nh
+          inboxInteractiveHandler nh
+
+inboxHandlerShell :: NHFile -> R.Reddup ()
+inboxHandlerShell nh@(NHFile (InboxDirTrackable _inbox _locSpec) file) = do
+  let envVars = [("FILE", Tu.encodeString file)]
+  Tu.echo "Starting bash. Reddup will continue when subshell exits."
+  Tu.echo "Filename available in shell as $FILE."
+  Tu.liftIO $ ShellUtil.openInteractiveShell envVars
+  destinationExists <- Tu.testfile file
+  if destinationExists then do
+    Tu.echo "file still exists, continuing processing"
+    inboxInteractiveHandler nh
+  else
+    Tu.echo "file no longer exists, continuing to next file"
 
 isFileIgnored :: FilePath -> C.LocationSpec -> Bool
 isFileIgnored file locSpec =
