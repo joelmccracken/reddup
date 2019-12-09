@@ -147,11 +147,11 @@ handleRefile nh@(NHFile _ filePath) = do
   reddup <- ask
   let config = R.reddupConfig reddup
   liftIO $ putStrLn $ show config
-  let inboxRefileDests' = C.inboxRefileDests config
+  let inboxRefileDests = C.inboxRefileDests config
   filePath' <- lift $ pathToTextOrError filePath
-  liftIO $ putStrLn $ "Refiling " <> (T.unpack filePath' )
-  liftIO $ putStrLn $ "Choose destination, or (q) to quit: "
-  liftIO $ printRefileDests $ M.elems inboxRefileDests'
+  liftIO $ TIO.putStrLn $ "Refiling " <> filePath'
+  liftIO $ TIO.putStrLn $ "Choose destination, or (q) to quit: "
+  liftIO $ printRefileDests $ M.elems inboxRefileDests
 
   dest <- T.pack <$> (liftIO $ getLine)
 
@@ -159,7 +159,7 @@ handleRefile nh@(NHFile _ filePath) = do
     "q" -> do
       liftIO $ putStrLn "quitting."
     _ -> do
-      let result = M.lookup dest inboxRefileDests'
+      let result = M.lookup dest inboxRefileDests
       case result of
         Just target -> do
           R.debug $ T.pack $ show target
