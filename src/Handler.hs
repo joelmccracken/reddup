@@ -56,8 +56,9 @@ inboxHandlerMenu nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
   file' <- lift $ pathToTextOrError file
   let fmtMsg = inbox' <> ": file present " <> file'
   let inboxHandlerCommands = C.inboxHandlerCommands config
+  Tu.echo $ Tu.fromString $ Tu.encodeString file
   let envVars = [("FILE", Tu.encodeString file)]
-  Tu.liftIO $ do
+  selection <- Tu.liftIO $ do
     putStrLn $ T.unpack $ fmtMsg
     putStrLn "Action choices:"
     putStrLn "(d)elete"
@@ -69,41 +70,41 @@ inboxHandlerMenu nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
     putStrLn "(q)uit"
     putStr "Selection: "
     IO.hFlush IO.stdout
-    selection <- getLine
-    case selection of
-      "d" -> do
-        putStrLn "deleting."
-        Tu.sh $ Tu.rm file
-      "s" -> do
-        putStrLn "Starting bash. Reddup will continue when subshell exits."
-        putStrLn "Filename available in shell as $FILE."
-        ShellUtil.openInteractiveShell envVars
-        Tu.sh $ do
-          destinationExists <- Tu.testfile file
-          if destinationExists then do
-            Tu.liftIO $ putStrLn "file still exists, continuing processing"
-            run (inboxInteractiveHandler nh)
-          else
-            Tu.liftIO $ putStrLn "file no longer exists, continuing to next file"
-      "f" -> do
-        Tu.sh $ run $ handleRefile nh
-      "n" ->
-        putStrLn "continuing to to next item."
-        -- just return from this handler, nothing left to do
-      "r" ->
-        Tu.sh $ run $ handleRename nh
-      "q" -> do
-        Tu.sh $ Tu.exit Tu.ExitSuccess
-      _ -> do
-        Tu.sh $ run $ R.debug $ T.pack $ show $ inboxHandlerCommands
-        let result = M.lookup (T.pack $ selection) inboxHandlerCommands
-        case result of
-          Just cmd -> Tu.sh $ do
-            _ <- Tu.liftIO $ ShellUtil.shellCmdWithEnv (C.cmdSpecCmd cmd) envVars
-            run $ inboxInteractiveHandler nh
-          Nothing -> do
-            putStrLn $ "input unrecognized: '" <> selection <>"'"
-            Tu.sh $ run $ inboxInteractiveHandler nh
+    getLine
+  case selection of
+    "d" -> do
+      Tu.echo "deleting."
+      Tu.rm file
+    "s" -> do
+      Tu.echo "Starting bash. Reddup will continue when subshell exits."
+      Tu.echo "Filename available in shell as $FILE."
+      Tu.liftIO $ ShellUtil.openInteractiveShell envVars
+      Tu.sh $ do
+        destinationExists <- Tu.testfile file
+        if destinationExists then do
+          Tu.echo "file still exists, continuing processing"
+          run (inboxInteractiveHandler nh)
+        else
+          Tu.echo "file no longer exists, continuing to next file"
+    "f" -> do
+      handleRefile nh
+    "n" ->
+      Tu.echo "continuing to to next item."
+      -- just return from this handler, nothing left to do
+    "r" ->
+      handleRename nh
+    "q" -> do
+      Tu.exit Tu.ExitSuccess
+    _ -> do
+      R.debug $ T.pack $ show $ inboxHandlerCommands
+      let result = M.lookup (T.pack $ selection) inboxHandlerCommands
+      case result of
+        Just cmd -> Tu.sh $ do
+          _ <- Tu.liftIO $ ShellUtil.shellCmdWithEnv (C.cmdSpecCmd cmd) envVars
+          run $ inboxInteractiveHandler nh
+        Nothing -> do
+          Tu.echo $ Tu.fromString $ "input unrecognized: '" <> selection <>"'"
+          Tu.sh $ run $ inboxInteractiveHandler nh
 
 isFileIgnored :: FilePath -> C.LocationSpec -> Bool
 isFileIgnored file locSpec =
