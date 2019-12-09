@@ -75,7 +75,7 @@ inboxHandlerMenu nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
       Tu.echo "deleting."
       Tu.rm file
     "s" -> do
-      inboxHandlerShell nh
+      inboxHandlerInteractiveShell nh
     "f" -> do
       handleRefile nh
     "n" ->
@@ -90,15 +90,14 @@ inboxHandlerMenu nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
       let result = M.lookup (T.pack $ selection) inboxHandlerCommands
       case result of
         Just cmd -> do
-          let envVars = [("FILE", Tu.encodeString file)]
-          _ <- Tu.liftIO $ ShellUtil.shellCmdWithEnv (C.cmdSpecCmd cmd) envVars
+          inboxHandlerCommand nh cmd
           inboxInteractiveHandler nh
         Nothing -> do
           Tu.echo $ Tu.fromString $ "input unrecognized: '" <> selection <>"'"
           inboxInteractiveHandler nh
 
-inboxHandlerShell :: NHFile -> R.Reddup ()
-inboxHandlerShell nh@(NHFile (InboxDirTrackable _inbox _locSpec) file) = do
+inboxHandlerInteractiveShell :: NHFile -> R.Reddup ()
+inboxHandlerInteractiveShell nh@(NHFile _idt file) = do
   let envVars = [("FILE", Tu.encodeString file)]
   Tu.echo "Starting bash. Reddup will continue when subshell exits."
   Tu.echo "Filename available in shell as $FILE."
@@ -109,6 +108,12 @@ inboxHandlerShell nh@(NHFile (InboxDirTrackable _inbox _locSpec) file) = do
     inboxInteractiveHandler nh
   else
     Tu.echo "file no longer exists, continuing to next file"
+
+inboxHandlerCommand :: NHFile -> C.InboxHandlerCommandSpec -> R.Reddup ()
+inboxHandlerCommand (NHFile _idt file) cmd = do
+  let envVars = [("FILE", Tu.encodeString file)]
+  _ <- Tu.liftIO $ ShellUtil.shellCmdWithEnv (C.cmdSpecCmd cmd) envVars
+  pure ()
 
 isFileIgnored :: FilePath -> C.LocationSpec -> Bool
 isFileIgnored file locSpec =
