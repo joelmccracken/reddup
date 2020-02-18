@@ -64,7 +64,7 @@ inboxHandlerMenu nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
     putStrLn "(r)ename file"
     putStrLn "open a (s)hell"
     putStrLn "continue to (n)ext"
-    putStrLn "re(f)le to location"
+    putStrLn "re(f)ile to location"
     printMenuCustomCommands $ M.elems inboxHandlerCommands
     putStrLn "(q)uit"
     putStr "Selection: "
