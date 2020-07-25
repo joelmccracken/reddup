@@ -1,9 +1,11 @@
 let
   sources = import ./nix/sources.nix;
-  pkgs = import sources.nixpkgs {};
+  pkgs = import sources.nixpkgs {
+    config = {};
+  };
   gis = import sources.gitignore { inherit (pkgs) lib; };
 
-  ghcide = pkgs.haskell.packages.ghc883.callPackage ./nix/ghcide.nix {};
+  ghcide = pkgs.haskell.packages.ghc883.ghcide;
 
   self = {
     inherit (pkgs) niv;
