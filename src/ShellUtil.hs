@@ -11,9 +11,7 @@ import qualified Control.Foldl as CF
 expandGlob :: Text -> Tu.Shell Tu.Line
 expandGlob glob =
   let
-    script
-      = "for f in " <> glob <>
-        "; do if [[ -f \"$f\" ]]; then  echo $f; fi; done"
+    script = "for f in " <> glob <> "; do echo $f; done"
   in
     Tu.inshell script Tu.empty
 
