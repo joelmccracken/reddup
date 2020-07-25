@@ -7,7 +7,6 @@ import qualified Data.Text.IO as TIO
 import Prelude hiding (FilePath, concat)
 import qualified Turtle as Tu
 import Turtle ((</>))
-import Data.Monoid ((<>))
 import Trackable.Data
 import Trackable.Util
 import qualified System.IO as IO

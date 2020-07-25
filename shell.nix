@@ -4,7 +4,7 @@ in
   pkgs.mkShell rec {
     nativeBuildInputs = with pkgs; [
       cabal2nix
-      haskell.compiler.ghc844
+      haskell.compiler.ghc883
       haskellPackages.ghcid
     ];
   }
