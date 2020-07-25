@@ -5,7 +5,6 @@ module Trackable where
 import Prelude hiding (FilePath, concat)
 import qualified Turtle as Tu
 -- import qualified System.IO as SIO
-import Data.Monoid ((<>))
 import qualified ShellUtil
 import qualified Config as C
 import qualified Handler as H
