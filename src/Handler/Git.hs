@@ -248,7 +248,7 @@ processGitNonInteractiveForce grTrack =
         checkGitProblems grTrack >>= tryFixGitProblem
 
 tryFixGitProblem :: NHGit -> Tu.Shell ()
-tryFixGitProblem nh@(NHGit (GitRepoTrackable _dir _locSpec) nhg) = do
+tryFixGitProblem nh@(NHGit _ nhg) = do
     case nhg of
         NHStatus (GP.Added _) ->
             addAndWipCommit
@@ -264,11 +264,9 @@ tryFixGitProblem nh@(NHGit (GitRepoTrackable _dir _locSpec) nhg) = do
             addAndWipCommit
         NHStatus (GP.Deleted _) ->
             addAndWipCommit
-        NHUnpushedBranch branch -> do
+        NHUnpushedBranch branch@(GP.GitBranch branchName) -> do
             targetAndMerge <- (,) <$> readPushTarget branch <*> readMerge branch
-            let (GP.GitBranch branchName) = branch
             liftIO $ gitPushCmd branchName (go targetAndMerge) mempty
-            pure ()
         _ -> do
             gitPrintHandler nh
             Tu.mzero
