@@ -28,8 +28,8 @@ gitHandler' grt@(GitRepoTrackable dir locSpec) = do
     else
          if H.force locSpec
             then do
-                processGitNonInteractiveForce grt
-            else processGitNonInteractive grt
+                lift $ processGitNonInteractiveForce grt
+            else lift $ processGitNonInteractive grt
   else
     errorNotGitRepo grt
 
@@ -238,13 +238,13 @@ gitPrintHandler (NHGit (GitRepoTrackable dir' _locSpec) nhg) = do
           NHNotGitRepo -> dir <> ": is not a git repo"
   liftIO $ putStrLn $ T.unpack $ format
 
-processGitNonInteractive :: GitRepoTrackable -> R.Reddup  ()
+processGitNonInteractive :: GitRepoTrackable -> Tu.Shell ()
 processGitNonInteractive grTrack = do
-  lift $ checkGitProblems grTrack >>= gitPrintHandler
+  checkGitProblems grTrack >>= gitPrintHandler
 
-processGitNonInteractiveForce :: GitRepoTrackable -> R.Reddup ()
+processGitNonInteractiveForce :: GitRepoTrackable -> Tu.Shell ()
 processGitNonInteractiveForce grTrack =
-    lift . forever $
+    forever $
         checkGitProblems grTrack >>= tryFixGitProblem
 
 tryFixGitProblem :: NHGit -> Tu.Shell ()
