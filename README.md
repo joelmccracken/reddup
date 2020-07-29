@@ -63,6 +63,10 @@ In non-interactive mode, it will will print these files for your inspection.
 In interactive mode (with `-i`), `reddup` will interactively help you "reddup"
 the repository.
 
+In force mode (when the repository has a `force: true` flag), it will
+automatically create a WIP commit and push branches to remote. The force flag
+is optional, and false by default.
+
 Options include:
 
 - Committing all changes (deleted, staged, unstaged, untracked).
@@ -82,6 +86,7 @@ Here is the one I am using right now:
 locations:
   - type: git
     location: ~/EF
+    force: true
   - type: git
     location: ~/Reference
   - type: git
