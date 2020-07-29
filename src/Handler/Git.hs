@@ -2,11 +2,13 @@
 
 module Handler.Git where
 
+import Control.Monad (forever)
 import qualified Data.Text as T
 import Trackable.Data
 import Trackable.Util
 import qualified GitParse as GP
 import qualified Turtle as Tu
+import qualified Handler as H
 import qualified Reddup  as R
 import Control.Monad.Reader (ask, lift, runReaderT, liftIO, guard)
 import qualified Git
@@ -15,7 +17,7 @@ import qualified System.IO as IO
 import qualified ShellUtil
 
 gitHandler' :: GitRepoTrackable -> R.Reddup ()
-gitHandler' grt@(GitRepoTrackable dir _locSpec) = do
+gitHandler' grt@(GitRepoTrackable dir locSpec) = do
   R.verbose $ "checking " <> (T.pack $ show dir)
   lift $ Tu.cd dir
   dirExists <- lift $ Tu.testdir ".git"
@@ -24,7 +26,10 @@ gitHandler' grt@(GitRepoTrackable dir _locSpec) = do
     if isInteractive then
       processGitInteractive grt
     else
-      processGitNonInteractive grt
+         if H.force locSpec
+            then do
+                processGitNonInteractiveForce grt
+            else processGitNonInteractive grt
   else
     errorNotGitRepo grt
 
@@ -201,20 +206,20 @@ gitPushCmd branchName targetAndMerge unrecognized =
     Nothing -> unrecognized
 
 checkGitProblems :: GitRepoTrackable -> Tu.Shell NHGit
-checkGitProblems grt = do
+checkGitProblems grt =
   checkGitUnpushed grt Tu.<|> checkGitStatus grt
 
 checkGitStatus :: GitRepoTrackable -> Tu.Shell NHGit
 checkGitStatus grt =
-  NHGit grt <$> NHStatus <$> Git.gitStatus
+  NHGit grt . NHStatus <$> Git.gitStatus
 
 checkGitUnpushed :: GitRepoTrackable -> Tu.Shell NHGit
 checkGitUnpushed grt =
-  NHGit grt <$> NHUnpushedBranch <$> Git.unpushedGitBranches
+  NHGit grt . NHUnpushedBranch <$> Git.unpushedGitBranches
 
-gitPrintHandler :: NHGit -> R.Reddup ()
+gitPrintHandler :: NHGit -> Tu.Shell ()
 gitPrintHandler (NHGit (GitRepoTrackable dir' _locSpec) nhg) = do
-  dir <- lift $ pathToTextOrError dir'
+  dir <- pathToTextOrError dir'
   let formatPath :: T.Text -> T.Text -> T.Text -> T.Text
       formatPath path statusItem label =
         path <> ": " <> label <> " '" <> statusItem  <> "'"
@@ -234,8 +239,47 @@ gitPrintHandler (NHGit (GitRepoTrackable dir' _locSpec) nhg) = do
   liftIO $ putStrLn $ T.unpack $ format
 
 processGitNonInteractive :: GitRepoTrackable -> R.Reddup  ()
-processGitNonInteractive grTrack =
-  (lift $ checkGitProblems grTrack) >>= gitPrintHandler
+processGitNonInteractive grTrack = do
+  lift $ checkGitProblems grTrack >>= gitPrintHandler
+
+processGitNonInteractiveForce :: GitRepoTrackable -> R.Reddup ()
+processGitNonInteractiveForce grTrack =
+    lift . forever $
+        checkGitProblems grTrack >>= tryFixGitProblem
+
+tryFixGitProblem :: NHGit -> Tu.Shell ()
+tryFixGitProblem nh@(NHGit (GitRepoTrackable _dir _locSpec) nhg) = do
+    case nhg of
+        NHStatus (GP.Added _) ->
+            addAndWipCommit
+        NHStatus (GP.AddedAndModified _) ->
+            addAndWipCommit
+        NHStatus (GP.Staged _) ->
+            addAndWipCommit
+        NHStatus (GP.Unstaged _) ->
+            addAndWipCommit
+        NHStatus (GP.StagedAndUnstaged _) ->
+            addAndWipCommit
+        NHStatus (GP.Untracked _) ->
+            addAndWipCommit
+        NHStatus (GP.Deleted _) ->
+            addAndWipCommit
+        NHUnpushedBranch branch -> do
+            targetAndMerge <- (,) <$> readPushTarget branch <*> readMerge branch
+            let (GP.GitBranch branchName) = branch
+            liftIO $ gitPushCmd branchName (go targetAndMerge) mempty
+            pure ()
+        _ -> do
+            gitPrintHandler nh
+            Tu.mzero
+  where
+    go :: (Maybe a, Maybe a) -> Maybe (a, a)
+    go (Just a, Just b) = Just (a, b)
+    go _ = Nothing
+
+addAndWipCommit :: Tu.MonadIO m => m ()
+addAndWipCommit =
+    Tu.sh $ Tu.inshell "git add .; git commit -m 'reddup auto WIP commit'" Tu.empty
 
 errorNotGitRepo :: GitRepoTrackable -> R.Reddup ()
 errorNotGitRepo (GitRepoTrackable dir _locSpec) = do

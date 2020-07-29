@@ -130,6 +130,13 @@ ignoredFiles locSpec =
     C.InboxLoc (C.InboxLocation _ ignoredFiles') ->
       Tu.fromString . T.unpack <$> ignoredFiles'
 
+force :: C.LocationSpec -> Bool
+force locSpec =
+  case locSpec of
+    C.GitLoc (C.GitLocation _ f) -> f
+    _ -> False
+
+
 printMenuCustomCommands :: [C.InboxHandlerCommandSpec] -> IO ()
 printMenuCustomCommands ihcSpecs = do
   printStrings $ (T.unpack . C.cmdName) <$> ihcSpecs
