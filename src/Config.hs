@@ -2,6 +2,7 @@
 
 module Config where
 
+import Data.Maybe (fromMaybe)
 import qualified Data.Yaml as Y
 import Data.Yaml (FromJSON(..), (.:), (.:?))
 -- import Control.Applicative
@@ -34,7 +35,7 @@ data Config =
 
 data LocationSpec
   = GitLoc {location :: Text}
-  | InboxLoc {location :: Text, ignoredFiles :: Maybe [Text] }
+  | InboxLoc {location :: Text, ignoredFiles :: [Text] }
   deriving (Eq, Show)
 
 data HandlerSpecs =
@@ -76,7 +77,7 @@ instance FromJSON LocationSpec where
     ignoredFiles' <- v .:? "ignored_files"
     case (T.unpack $ type') of
       "git" -> return $ GitLoc location'
-      "inbox" -> return $ InboxLoc location' ignoredFiles'
+      "inbox" -> return $ InboxLoc location' (fromMaybe [] ignoredFiles')
       _ -> fail $ "Location type must be either 'git' or 'inbox', found '" <> T.unpack type' <> "'"
 
 instance FromJSON HandlerSpecs where
