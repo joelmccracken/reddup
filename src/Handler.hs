@@ -126,8 +126,8 @@ isFileIgnored file locSpec =
 ignoredFiles :: C.LocationSpec -> [Tu.FilePath]
 ignoredFiles locSpec =
   case locSpec of
-    C.GitLoc _loc -> []
-    C.InboxLoc _loc ignoredFiles' ->
+    C.GitLoc _ -> []
+    C.InboxLoc (C.InboxLocation _ ignoredFiles') ->
       Tu.fromString . T.unpack <$> ignoredFiles'
 
 printMenuCustomCommands :: [C.InboxHandlerCommandSpec] -> IO ()

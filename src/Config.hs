@@ -5,7 +5,6 @@ module Config where
 import Data.Maybe (fromMaybe)
 import qualified Data.Yaml as Y
 import Data.Yaml (FromJSON(..), (.:), (.:?))
--- import Control.Applicative
 import Data.Text hiding (empty)
 import qualified Turtle as Tu
 import Data.ByteString as BS
@@ -34,8 +33,17 @@ data Config =
     } deriving (Eq, Show)
 
 data LocationSpec
-  = GitLoc {location :: Text}
-  | InboxLoc {location :: Text, ignoredFiles :: [Text] }
+  = GitLoc GitLocation
+  | InboxLoc InboxLocation
+  deriving (Eq, Show)
+
+data GitLocation = GitLocation { gitLocation :: Text }
+  deriving (Eq, Show)
+
+data InboxLocation = InboxLocation
+    { inboxLocation :: Text
+    , ignoredFiles :: [Text]
+    }
   deriving (Eq, Show)
 
 data HandlerSpecs =
@@ -76,8 +84,8 @@ instance FromJSON LocationSpec where
     location' <- v .:  "location"
     ignoredFiles' <- v .:? "ignored_files"
     case (T.unpack $ type') of
-      "git" -> return $ GitLoc location'
-      "inbox" -> return $ InboxLoc location' (fromMaybe [] ignoredFiles')
+      "git" -> return $ GitLoc $ GitLocation location'
+      "inbox" -> return $ InboxLoc $ InboxLocation location' (fromMaybe [] ignoredFiles')
       _ -> fail $ "Location type must be either 'git' or 'inbox', found '" <> T.unpack type' <> "'"
 
 instance FromJSON HandlerSpecs where
