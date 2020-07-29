@@ -4,7 +4,6 @@ module Trackable where
 
 import Prelude hiding (FilePath, concat)
 import qualified Turtle as Tu
--- import qualified System.IO as SIO
 import qualified ShellUtil
 import qualified Config as C
 import qualified Handler as H
@@ -41,9 +40,9 @@ locationSpecToTrackable ls = do
   let expand location =
         (Tu.fromText . Tu.lineToText) <$> (ShellUtil.expandGlob location)
   case ls of
-    C.GitLoc location -> do
+    C.GitLoc (C.GitLocation location) -> do
       path' <- (expand location)
       return $ GitRepo $ GitRepoTrackable path' ls
-    C.InboxLoc location _foo -> do
+    C.InboxLoc (C.InboxLocation location _) -> do
       path' <- (expand location)
       return $ InboxDir $ InboxDirTrackable path' ls
