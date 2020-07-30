@@ -202,7 +202,7 @@ gitPushCmd branchName targetAndMerge unrecognized =
       let
         cmd = "git push -v " <> target <> " " <> branchName <> ":" <> merge
       in
-        Tu.sh $ Tu.shell cmd Tu.empty
+        Tu.sh $ Tu.inshell cmd Tu.empty
     Nothing -> unrecognized
 
 checkGitProblems :: GitRepoTrackable -> Tu.Shell NHGit
