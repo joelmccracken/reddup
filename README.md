@@ -2,6 +2,8 @@
 
 A program to help keep things tidy.
 
+[![asciicast](https://asciinema.org/a/355687.svg)](https://asciinema.org/a/355687)
+
 This should be considered alpha quality. If you have any questions, feel free to
 use issues or send an email.
 
@@ -23,7 +25,7 @@ which can be used to "clean up" the untidy things that have been found.
 ## Support
 
 For a few reasons (which may be overcomable), `reddup` requires that it be on a
-unix-like environment. Sorry, Windows users.
+unix-like environment. Sorry, Windows users, if you want to use Reddup, you're forced to run it via the WSL.
 
 # Capabilities
 
