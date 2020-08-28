@@ -72,7 +72,11 @@ inboxHandlerMenu nh@(NHFile (InboxDirTrackable inbox _locSpec) file) = do
   case selection of
     "d" -> do
       Tu.echo "deleting."
-      Tu.rm file
+      isItADir <- Tu.testdir file
+      if isItADir then
+        Tu.rmdir file
+      else
+        Tu.rm file
     "s" -> do
       inboxHandlerInteractiveShell nh
     "f" -> do
