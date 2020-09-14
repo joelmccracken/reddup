@@ -137,7 +137,7 @@ ignoredFiles locSpec =
 force :: C.LocationSpec -> Bool
 force locSpec =
   case locSpec of
-    C.GitLoc (C.GitLocation _ f) -> f
+    C.GitLoc (C.GitLocation _ f _) -> f
     _ -> False
 
 

@@ -40,6 +40,7 @@ data LocationSpec
 data GitLocation = GitLocation
     { gitLocation :: Text
     , gitForce    :: Bool
+    , gitMessage  :: !Text
     }
   deriving (Eq, Show)
 
@@ -83,12 +84,13 @@ instance FromJSON Config where
 
 instance FromJSON LocationSpec where
   parseJSON = Y.withObject "LocationSpec" $ \v -> do
-    type'     <- v .:  "type"
-    location' <- v .:  "location"
-    force     <- v .:? "force"
+    type'         <- v .:  "type"
+    location'     <- v .:  "location"
+    force         <- v .:? "force"
     ignoredFiles' <- v .:? "ignored_files"
+    maybeMsg      <- v .:? "commit_message"
     case (T.unpack $ type') of
-      "git" -> return $ GitLoc $ GitLocation location' (fromMaybe False force)
+      "git" -> return $ GitLoc $ GitLocation location' (fromMaybe False force) (fromMaybe "WIP" maybeMsg)
       "inbox" -> return $ InboxLoc $ InboxLocation location' (fromMaybe [] ignoredFiles')
       _ -> fail $ "Location type must be either 'git' or 'inbox', found '" <> T.unpack type' <> "'"
 

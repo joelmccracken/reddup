@@ -15,6 +15,7 @@ import qualified Git
 import qualified Control.Foldl as L
 import qualified System.IO as IO
 import qualified ShellUtil
+import qualified Config as C
 
 gitHandler' :: GitRepoTrackable -> R.Reddup ()
 gitHandler' grt@(GitRepoTrackable dir locSpec) = do
@@ -75,7 +76,7 @@ processGitWorkDir grt@(GitRepoTrackable dir _locSpec) = do
     putStrLn "git (d)iff (diff of working dir and index)"
     putStrLn "git d(i)ff --cached (diff of index and HEAD)"
     putStrLn "git s(t)atus"
-    putStrLn "(w)ip commit (`git add .; git commit -m 'WIP'` )"
+    putStrLn "(w)ip/commit_message commit (`git add .; git commit -m 'WIP'/commit_message` )"
     putStrLn "continue to (n)ext item"
     putStrLn "(q)uit"
     putStr "Choice: "
@@ -98,7 +99,8 @@ processGitWorkDir grt@(GitRepoTrackable dir _locSpec) = do
         Tu.sh $ Tu.shell "git status" Tu.empty
         run $ processGitInteractive grt
       "w" -> do
-        Tu.sh $ Tu.inshell "git add .; git commit -m 'WIP'" Tu.empty
+        let C.GitLoc (C.GitLocation _ _ gitMsg) = _locSpec 
+        Tu.sh $ Tu.inshell ("git add .; git commit -m " <> gitMsg) Tu.empty
         run $ processGitInteractive grt
       "q" -> do
         Tu.sh $ Tu.exit Tu.ExitSuccess
