@@ -20,9 +20,11 @@ data ProcessedConfig =
     { rawConfig :: Config
     , inboxHandlerCommands :: CustomHandlers
     , inboxRefileDests :: RefileDests
+    --, gitHandlerCommands :: !CustomGitHandlers
     } deriving (Eq, Show)
 
-type CustomHandlers = M.Map T.Text InboxHandlerCommandSpec
+type CustomHandlers    = M.Map T.Text InboxHandlerCommandSpec
+type CustomGitHandlers = M.Map T.Text GitHandlerCommandSpec
 
 type RefileDests = M.Map T.Text InboxHandlerRefileDestSpec
 
@@ -57,7 +59,7 @@ data HandlerSpecs
       { gitHandlers :: GitHandlerSpec
       }
   deriving (Eq, Show)
-    
+
 newtype GitHandlerSpec
   = GitHandlerSpec {gitCommands :: Maybe [GitHandlerCommandSpec]}
   deriving (Eq, Show)
@@ -68,7 +70,7 @@ data GitHandlerCommandSpec =
     , gitCmdSpecCmd :: !Text
     , gitCmdKey     :: !Text
     } deriving (Eq, Show)
-    
+
 data InboxHandlerSpec =
   InboxHandlerSpec
     { commands :: Maybe [InboxHandlerCommandSpec]
@@ -116,12 +118,7 @@ instance FromJSON HandlerSpecs where
       Just val -> return $ InboxSpec val
       Nothing -> case git' of
                    Just gitVal -> return $ GitSpec gitVal
-                   Nothing -> fail "error parsing handler specs"    
---instance FromJSON HandlerSpecs where
---  parseJSON (Y.Object v) =
---    HandlerSpecs <$>
---    v .: "inbox"
---  parseJSON _ = fail "error parsing handler specs"
+                   Nothing -> fail "error parsing handler specs"
 
 instance FromJSON InboxHandlerSpec where
   parseJSON (Y.Object v) =
@@ -135,15 +132,15 @@ instance FromJSON GitHandlerSpec where
     GitHandlerSpec <$>
       v .:? "commands"
   parseJSON _ = fail "error parsing git handler spec"
-  
+
 instance FromJSON GitHandlerCommandSpec where
   parseJSON (Y.Object v) =
     GitHandlerCommandSpec <$>
       v .: "name" <*>
       v .: "cmd"  <*>
       v .: "key"
-  parseJSON _ = fail "error parsing git handler command"    
-      
+  parseJSON _ = fail "error parsing git handler command"
+
 instance FromJSON InboxHandlerCommandSpec where
   parseJSON (Y.Object v) =
     InboxHandlerCommandSpec <$>
@@ -173,7 +170,32 @@ loadConfig = do
 data ConfigError
   = ErrorCmdHandlerKeyWrongNumChars InboxHandlerCommandSpec
   | ErrorRefileDestKeyWrongNumChars InboxHandlerRefileDestSpec
+  | ErrorGitCmdHandlerKeyWrongNumChars GitHandlerCommandSpec
   deriving (Eq, Show)
+
+processGitCommandHandlers ::
+  Maybe [GitHandlerCommandSpec] ->
+  ([ConfigError], CustomGitHandlers)
+processGitCommandHandlers maybeCmdSpecs = 
+  let
+    cmdSpecs :: [GitHandlerCommandSpec]
+    cmdSpecs = fromMaybe [] maybeCmdSpecs
+    
+    hasRightNumChars spec = (List.length $ T.unpack $ (gitCmdKey spec) ) > 0
+    
+    (rightNumCharsCmds,
+         wrongNumCharsCmds) = List.partition hasRightNumChars cmdSpecs
+    
+    errors =
+      (ErrorGitCmdHandlerKeyWrongNumChars <$> wrongNumCharsCmds) 
+    
+    toPair spec = (gitCmdKey spec, spec)
+    
+    successes = toPair <$> rightNumCharsCmds
+  in
+    (errors, M.fromList successes)      
+         
+
 
 processInboxCommandHandlers ::
   Maybe [InboxHandlerCommandSpec] ->
@@ -181,7 +203,7 @@ processInboxCommandHandlers ::
 processInboxCommandHandlers maybeCmdSpecs =
   let
     cmdSpecs :: [InboxHandlerCommandSpec]
-    cmdSpecs = maybe [] id maybeCmdSpecs
+    cmdSpecs = fromMaybe [] maybeCmdSpecs
 
     hasRightNumChars spec = (List.length $ T.unpack $ (cmdKey spec) ) > 0
 
@@ -272,3 +294,13 @@ configErrorDisplay ce =
         ", key value is " <>
         key <>
         ", key must be at least one character long."
+    ErrorGitCmdHandlerKeyWrongNumChars handlerSpec ->
+      let
+        cmdName' = T.pack $ show $ gitCmdName handlerSpec
+        cmdKey' = T.pack $ show $ gitCmdKey handlerSpec
+      in
+        "key for command " <>
+        cmdName' <>
+        ", key value is " <>
+        cmdKey' <>
+        ", key must be at least one character long.\n"   
