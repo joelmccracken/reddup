@@ -10,11 +10,14 @@ import qualified GitParse as GP
 import qualified Turtle as Tu
 import qualified Handler as H
 import qualified Reddup  as R
+import qualified Data.Map.Strict as M
+import qualified Config as C
 import Control.Monad.Reader (ask, lift, runReaderT, liftIO, guard)
 import qualified Git
 import qualified Control.Foldl as L
 import qualified System.IO as IO
 import qualified ShellUtil
+import Data.Foldable (traverse_)
 
 gitHandler' :: GitRepoTrackable -> R.Reddup ()
 gitHandler' grt@(GitRepoTrackable dir locSpec) = do
@@ -63,7 +66,10 @@ processGitWorkDir grt@(GitRepoTrackable dir _locSpec) = do
   let
     run :: R.Reddup () -> IO ()
     run = Tu.sh . (flip runReaderT) reddup
-
+    
+  let config = R.reddupConfig reddup
+  let gitHandlerCommands = C.gitHandlerCommands config
+    
   liftIO $ putStrLn $
     "Git repo " <>
     Tu.encodeString dir <>
@@ -77,6 +83,10 @@ processGitWorkDir grt@(GitRepoTrackable dir _locSpec) = do
     putStrLn "git s(t)atus"
     putStrLn "(w)ip commit (`git add .; git commit -m 'WIP'` )"
     putStrLn "continue to (n)ext item"
+    
+    --print (length (M.elems gitHandlerCommands))
+    printMenuCustomCommands $ M.elems gitHandlerCommands
+    
     putStrLn "(q)uit"
     putStr "Choice: "
     IO.hFlush IO.stdout
@@ -102,10 +112,29 @@ processGitWorkDir grt@(GitRepoTrackable dir _locSpec) = do
         run $ processGitInteractive grt
       "q" -> do
         Tu.sh $ Tu.exit Tu.ExitSuccess
+--      _ -> do
+--        putStrLn $ "input unrecognized: '" <> selection <>"'"
+--        run $ processGitInteractive grt
       _ -> do
-        putStrLn $ "input unrecognized: '" <> selection <>"'"
-        run $ processGitInteractive grt
+        let result = M.lookup (T.pack $ selection) gitHandlerCommands
+        case result of
+          Just cmd -> do
+            --gitHandlerCommand grt cmd
+            Tu.sh $ Tu.inshell (C.gitCmdSpecCmd cmd) Tu.empty
+            run $ processGitInteractive grt
+          Nothing -> do
+            putStrLn $ "input unrecognized: '" <> selection <>"'"
+            run $ processGitInteractive grt
 
+        
+
+printStrings :: [String] -> IO ()
+printStrings = traverse_ putStrLn
+
+printMenuCustomCommands :: [C.GitHandlerCommandSpec] -> IO ()
+printMenuCustomCommands ghcSpecs = do
+  printStrings $ (T.unpack . C.gitCmdName) <$> ghcSpecs
+  
 processGitUnpushed :: GitRepoTrackable -> Tu.Shell GP.GitBranch -> R.Reddup ()
 processGitUnpushed grt@(GitRepoTrackable dir _locSpec) branchShell = do
   reddup <- ask

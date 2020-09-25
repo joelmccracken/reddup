@@ -26,7 +26,7 @@ data ProcessedConfig =
 type CustomHandlers    = M.Map T.Text InboxHandlerCommandSpec
 -- / key is the letter of command
 type CustomGitHandlers = M.Map T.Text GitHandlerCommandSpec
-type RefileDests = M.Map T.Text InboxHandlerRefileDestSpec
+type RefileDests       = M.Map T.Text InboxHandlerRefileDestSpec
 
 data Config =
   Config
