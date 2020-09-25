@@ -2,15 +2,15 @@
 
 module Main where
 
-import qualified Data.Text as T
-import Prelude hiding (FilePath, concat)
-import qualified Turtle as Tu
+import qualified Data.Text            as T
+import           Prelude              hiding (FilePath, concat)
+import qualified Turtle               as Tu
 
-import qualified Config as C
-import qualified Trackable as Track
-import qualified Options as O
-import qualified Reddup  as R
-import Control.Monad.Reader
+import qualified Config               as C
+import           Control.Monad.Reader
+import qualified Options              as O
+import qualified Reddup               as R
+import qualified Trackable            as Track
 
 extractConfig :: Either String C.Config -> Tu.Shell C.Config
 extractConfig eitherConfig =

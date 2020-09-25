@@ -2,34 +2,36 @@
 
 module Config where
 
-import Data.Maybe (fromMaybe)
-import qualified Data.Yaml as Y
-import Data.Yaml (FromJSON(..), (.:), (.:?))
-import Data.Text hiding (empty)
-import qualified Turtle as Tu
-import Data.ByteString as BS
-import qualified Data.Text as T
-import qualified System.IO as SIO
-import qualified ShellUtil
+import qualified Data.Bifunctor  as BF
+import           Data.ByteString as BS
+import qualified Data.List       as List
 import qualified Data.Map.Strict as M
-import qualified Data.List as List
-import qualified Data.Bifunctor as BF
+import           Data.Maybe      (fromMaybe)
+import           Data.Text       hiding (empty)
+import qualified Data.Text       as T
+import           Data.Yaml       (FromJSON (..), (.:), (.:?))
+import qualified Data.Yaml       as Y
+import qualified ShellUtil
+import qualified System.IO       as SIO
+import qualified Turtle          as Tu
 
 data ProcessedConfig =
   ProcessedConfig
-    { rawConfig :: Config
+    { rawConfig            :: Config
     , inboxHandlerCommands :: CustomHandlers
-    , inboxRefileDests :: RefileDests
+    , inboxRefileDests     :: RefileDests
+    , gitHandlerCommands   :: !CustomGitHandlers
     } deriving (Eq, Show)
 
-type CustomHandlers = M.Map T.Text InboxHandlerCommandSpec
-
-type RefileDests = M.Map T.Text InboxHandlerRefileDestSpec
+type CustomHandlers    = M.Map T.Text InboxHandlerCommandSpec
+-- / key is the letter of command
+type CustomGitHandlers = M.Map T.Text GitHandlerCommandSpec
+type RefileDests       = M.Map T.Text InboxHandlerRefileDestSpec
 
 data Config =
   Config
     { locations :: [LocationSpec]
-    , handlers :: HandlerSpecs
+    , handlers  :: HandlerSpecs
     } deriving (Eq, Show)
 
 data LocationSpec
@@ -45,33 +47,46 @@ data GitLocation = GitLocation
 
 data InboxLocation = InboxLocation
     { inboxLocation :: Text
-    , ignoredFiles :: [Text]
+    , ignoredFiles  :: [Text]
     }
   deriving (Eq, Show)
 
-data HandlerSpecs =
-  HandlerSpecs
-    { inboxHandlers :: InboxHandlerSpec
+data HandlerSpecs
+  = HandlerSpecs
+  { handlerSpecInbox :: Maybe InboxHandlerSpec
+  , handlerSpecGit   :: Maybe GitHandlerSpec
+  }
+  deriving (Eq, Show)
+
+newtype GitHandlerSpec
+  = GitHandlerSpec {gitCommands :: Maybe [GitHandlerCommandSpec]}
+  deriving (Eq, Show)
+
+data GitHandlerCommandSpec =
+  GitHandlerCommandSpec
+    { gitCmdName    :: !Text
+    , gitCmdSpecCmd :: !Text
+    , gitCmdKey     :: !Text
     } deriving (Eq, Show)
 
 data InboxHandlerSpec =
   InboxHandlerSpec
-    { commands :: Maybe [InboxHandlerCommandSpec]
+    { commands    :: Maybe [InboxHandlerCommandSpec]
     , refileDests :: Maybe [InboxHandlerRefileDestSpec]
     } deriving (Eq, Show)
 
 data InboxHandlerCommandSpec =
   InboxHandlerCommandSpec
-    { cmdName :: Text
+    { cmdName    :: Text
     , cmdSpecCmd :: Text
-    , cmdKey :: Text
+    , cmdKey     :: Text
     } deriving (Eq, Show)
 
 data InboxHandlerRefileDestSpec =
   InboxHandlerRefileDestSpec
     { refileDestName :: Text
-    , refileDestKey :: Text
-    , refileDestDir :: Text
+    , refileDestKey  :: Text
+    , refileDestDir  :: Text
     } deriving (Eq, Show)
 
 instance FromJSON Config where
@@ -92,10 +107,12 @@ instance FromJSON LocationSpec where
       "inbox" -> return $ InboxLoc $ InboxLocation location' (fromMaybe [] ignoredFiles')
       _ -> fail $ "Location type must be either 'git' or 'inbox', found '" <> T.unpack type' <> "'"
 
+
 instance FromJSON HandlerSpecs where
   parseJSON (Y.Object v) =
     HandlerSpecs <$>
-    v .: "inbox"
+      v .:? "inbox" <*>
+      v .:? "git"
   parseJSON _ = fail "error parsing handler specs"
 
 instance FromJSON InboxHandlerSpec where
@@ -104,6 +121,20 @@ instance FromJSON InboxHandlerSpec where
       v .:? "commands" <*>
       v .:? "refile_dests"
   parseJSON _ = fail "error parsing inbox handler spec"
+
+instance FromJSON GitHandlerSpec where
+  parseJSON (Y.Object v) =
+    GitHandlerSpec <$>
+      v .:? "commands"
+  parseJSON _ = fail "error parsing git handler spec"
+
+instance FromJSON GitHandlerCommandSpec where
+  parseJSON (Y.Object v) =
+    GitHandlerCommandSpec <$>
+      v .: "name" <*>
+      v .: "cmd"  <*>
+      v .: "key"
+  parseJSON _ = fail "error parsing git handler command"
 
 instance FromJSON InboxHandlerCommandSpec where
   parseJSON (Y.Object v) =
@@ -134,7 +165,29 @@ loadConfig = do
 data ConfigError
   = ErrorCmdHandlerKeyWrongNumChars InboxHandlerCommandSpec
   | ErrorRefileDestKeyWrongNumChars InboxHandlerRefileDestSpec
+  | ErrorGitCmdHandlerKeyWrongNumChars GitHandlerCommandSpec
   deriving (Eq, Show)
+
+processGitCommandHandlers ::
+  Maybe [GitHandlerCommandSpec] ->
+  ([ConfigError], CustomGitHandlers)
+processGitCommandHandlers maybeCmdSpecs =
+  let
+    cmdSpecs :: [GitHandlerCommandSpec]
+    cmdSpecs = fromMaybe [] maybeCmdSpecs
+
+    hasRightNumChars spec = (List.length $ T.unpack $ (gitCmdKey spec) ) > 0
+
+    (rightNumCharsCmds, wrongNumCharsCmds) = List.partition hasRightNumChars cmdSpecs
+
+    errors =
+      (ErrorGitCmdHandlerKeyWrongNumChars <$> wrongNumCharsCmds)
+
+    toPair spec = (gitCmdKey spec, spec)
+
+    successes = toPair <$> rightNumCharsCmds
+  in
+    (errors, M.fromList successes)
 
 processInboxCommandHandlers ::
   Maybe [InboxHandlerCommandSpec] ->
@@ -142,7 +195,7 @@ processInboxCommandHandlers ::
 processInboxCommandHandlers maybeCmdSpecs =
   let
     cmdSpecs :: [InboxHandlerCommandSpec]
-    cmdSpecs = maybe [] id maybeCmdSpecs
+    cmdSpecs = fromMaybe [] maybeCmdSpecs
 
     hasRightNumChars spec = (List.length $ T.unpack $ (cmdKey spec) ) > 0
 
@@ -162,19 +215,27 @@ processConfig :: Config -> Either [ConfigError] ProcessedConfig
 processConfig config =
   let
     inboxHandlerCommands' :: Maybe [InboxHandlerCommandSpec]
-    inboxHandlerCommands' = commands $ inboxHandlers $ handlers config
+    inboxHandlerCommands' = commands =<< handlerSpecInbox (handlers config)
+
     (ihcErrors, ihcSuccesses) = processInboxCommandHandlers inboxHandlerCommands'
 
     inboxRefileDests' :: Maybe [InboxHandlerRefileDestSpec]
-    inboxRefileDests' = refileDests $ inboxHandlers $ handlers config
+    inboxRefileDests' = refileDests =<< handlerSpecInbox (handlers config)
+
     (refileErrors, refileDests') = processRefileDests inboxRefileDests'
 
-    allErrors = ihcErrors ++ refileErrors
+    gitHandlerCommands' :: Maybe [GitHandlerCommandSpec]
+    gitHandlerCommands' = gitCommands =<< handlerSpecGit (handlers config)
+
+    (ghcErrors, ghcSuccesses) = processGitCommandHandlers gitHandlerCommands'
+
+    allErrors = ihcErrors ++ refileErrors ++ ghcErrors
 
     newConfig = ProcessedConfig
       { rawConfig = config
       , inboxHandlerCommands = ihcSuccesses
       , inboxRefileDests = refileDests'
+      , gitHandlerCommands = ghcSuccesses
       }
   in
     if List.length allErrors > 0 then
@@ -233,3 +294,13 @@ configErrorDisplay ce =
         ", key value is " <>
         key <>
         ", key must be at least one character long."
+    ErrorGitCmdHandlerKeyWrongNumChars handlerSpec ->
+      let
+        cmdName' = T.pack $ show $ gitCmdName handlerSpec
+        cmdKey' = T.pack $ show $ gitCmdKey handlerSpec
+      in
+        "key for command " <>
+        cmdName' <>
+        ", key value is " <>
+        cmdKey' <>
+        ", key must be at least one character long.\n"

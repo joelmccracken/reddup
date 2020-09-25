@@ -2,19 +2,22 @@
 
 module Handler.Git where
 
-import Control.Monad (forever)
-import qualified Data.Text as T
-import Trackable.Data
-import Trackable.Util
-import qualified GitParse as GP
-import qualified Turtle as Tu
-import qualified Handler as H
-import qualified Reddup  as R
-import Control.Monad.Reader (ask, lift, runReaderT, liftIO, guard)
+import qualified Config               as C
+import qualified Control.Foldl        as L
+import           Control.Monad        (forever)
+import           Control.Monad.Reader (ask, guard, lift, liftIO, runReaderT)
+import           Data.Foldable        (traverse_)
+import qualified Data.Map.Strict      as M
+import qualified Data.Text            as T
 import qualified Git
-import qualified Control.Foldl as L
-import qualified System.IO as IO
+import qualified GitParse             as GP
+import qualified Handler              as H
+import qualified Reddup               as R
 import qualified ShellUtil
+import qualified System.IO            as IO
+import           Trackable.Data
+import           Trackable.Util
+import qualified Turtle               as Tu
 
 gitHandler' :: GitRepoTrackable -> R.Reddup ()
 gitHandler' grt@(GitRepoTrackable dir locSpec) = do
@@ -64,6 +67,9 @@ processGitWorkDir grt@(GitRepoTrackable dir _locSpec) = do
     run :: R.Reddup () -> IO ()
     run = Tu.sh . (flip runReaderT) reddup
 
+  let config = R.reddupConfig reddup
+  let gitHandlerCommands = C.gitHandlerCommands config
+
   liftIO $ putStrLn $
     "Git repo " <>
     Tu.encodeString dir <>
@@ -77,6 +83,9 @@ processGitWorkDir grt@(GitRepoTrackable dir _locSpec) = do
     putStrLn "git s(t)atus"
     putStrLn "(w)ip commit (`git add .; git commit -m 'WIP'` )"
     putStrLn "continue to (n)ext item"
+
+    printMenuCustomCommands $ M.elems gitHandlerCommands
+
     putStrLn "(q)uit"
     putStr "Choice: "
     IO.hFlush IO.stdout
@@ -103,8 +112,21 @@ processGitWorkDir grt@(GitRepoTrackable dir _locSpec) = do
       "q" -> do
         Tu.sh $ Tu.exit Tu.ExitSuccess
       _ -> do
-        putStrLn $ "input unrecognized: '" <> selection <>"'"
-        run $ processGitInteractive grt
+        let result = M.lookup (T.pack $ selection) gitHandlerCommands
+        case result of
+          Just cmd -> do
+            Tu.sh $ Tu.inshell (C.gitCmdSpecCmd cmd) Tu.empty
+            run $ processGitInteractive grt
+          Nothing -> do
+            putStrLn $ "input unrecognized: '" <> selection <>"'"
+            run $ processGitInteractive grt
+
+printStrings :: [String] -> IO ()
+printStrings = traverse_ putStrLn
+
+printMenuCustomCommands :: [C.GitHandlerCommandSpec] -> IO ()
+printMenuCustomCommands ghcSpecs = do
+  printStrings $ (T.unpack . C.gitCmdName) <$> ghcSpecs
 
 processGitUnpushed :: GitRepoTrackable -> Tu.Shell GP.GitBranch -> R.Reddup ()
 processGitUnpushed grt@(GitRepoTrackable dir _locSpec) branchShell = do
@@ -273,7 +295,7 @@ tryFixGitProblem nh@(NHGit _ nhg) = do
   where
     go :: (Maybe a, Maybe a) -> Maybe (a, a)
     go (Just a, Just b) = Just (a, b)
-    go _ = Nothing
+    go _                = Nothing
 
 addAndWipCommit :: Tu.MonadIO m => m ()
 addAndWipCommit =
