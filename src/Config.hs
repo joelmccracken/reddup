@@ -20,12 +20,12 @@ data ProcessedConfig =
     { rawConfig :: Config
     , inboxHandlerCommands :: CustomHandlers
     , inboxRefileDests :: RefileDests
-    --, gitHandlerCommands :: !CustomGitHandlers
+    , gitHandlerCommands :: !CustomGitHandlers
     } deriving (Eq, Show)
 
 type CustomHandlers    = M.Map T.Text InboxHandlerCommandSpec
+-- / key is the letter of command
 type CustomGitHandlers = M.Map T.Text GitHandlerCommandSpec
-
 type RefileDests = M.Map T.Text InboxHandlerRefileDestSpec
 
 data Config =
@@ -223,19 +223,34 @@ processConfig :: Config -> Either [ConfigError] ProcessedConfig
 processConfig config =
   let
     inboxHandlerCommands' :: Maybe [InboxHandlerCommandSpec]
-    inboxHandlerCommands' = commands $ inboxHandlers $ handlers config
-    (ihcErrors, ihcSuccesses) = processInboxCommandHandlers inboxHandlerCommands'
+    --inboxHandlerCommands' = commands $ inboxHandlers $ handlers config
+    inboxHandlerCommands' = 
+      case handlers config of
+        InboxSpec handlers' -> commands handlers'
+        _                   -> Nothing
+    
+    (ihcErrors, ihcSuccesses) = processInboxCommandHandlers inboxHandlerCommands' 
 
     inboxRefileDests' :: Maybe [InboxHandlerRefileDestSpec]
     inboxRefileDests' = refileDests $ inboxHandlers $ handlers config
     (refileErrors, refileDests') = processRefileDests inboxRefileDests'
 
-    allErrors = ihcErrors ++ refileErrors
+    gitHandlerCommands' :: Maybe [GitHandlerCommandSpec]
+    --gitHandlerCommands' = gitCommands $ gitHandlers $ handlers config
+    gitHandlerCommands' =
+      case handlers config of
+        GitSpec handlers' -> gitCommands handlers'
+        _                 -> Nothing  
+    
+    (ghcErrors, ghcSuccesses) = processGitCommandHandlers gitHandlerCommands'
+    
+    allErrors = ihcErrors ++ refileErrors ++ ghcErrors
 
     newConfig = ProcessedConfig
       { rawConfig = config
       , inboxHandlerCommands = ihcSuccesses
       , inboxRefileDests = refileDests'
+      , gitHandlerCommands = ghcSuccesses
       }
   in
     if List.length allErrors > 0 then

@@ -11,6 +11,7 @@ import qualified Trackable as Track
 import qualified Options as O
 import qualified Reddup  as R
 import Control.Monad.Reader
+import Debug.Trace
 
 extractConfig :: Either String C.Config -> Tu.Shell C.Config
 extractConfig eitherConfig =
@@ -30,15 +31,15 @@ checkConfig' config =
 main :: IO ()
 main = Tu.sh $ do
   opts <- O.parseOpts
-  eitherConfig <- C.loadConfig
-  configUnchecked <- extractConfig eitherConfig
-  pconfig <- checkConfig' configUnchecked
-  let reddup = R.ReddupD pconfig opts
-  runReaderT doIt reddup
+  eitherConfig <- trace "loading config" C.loadConfig
+  configUnchecked <- trace "extracting config" extractConfig eitherConfig
+  pconfig <- trace "checking config" checkConfig' configUnchecked
+  let reddup = trace "constructing R.ReddupD" R.ReddupD pconfig opts
+  trace "runReaderT" runReaderT doIt reddup
 
 doIt :: R.Reddup ()
 doIt = do
-  ask >>= (R.debug . T.pack . show)
-  trackable <- Track.configToTrackables
+  ask >>= trace "ask to R.Reddup ()" (R.debug . T.pack . show)
+  trackable <- trace "config to trackables" Track.configToTrackables
   Track.handleTrackable trackable
   R.debug "done"
