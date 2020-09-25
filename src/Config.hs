@@ -49,11 +49,26 @@ data InboxLocation = InboxLocation
     }
   deriving (Eq, Show)
 
-data HandlerSpecs =
-  HandlerSpecs
-    { inboxHandlers :: InboxHandlerSpec
-    } deriving (Eq, Show)
+data HandlerSpecs
+  = InboxSpec
+      { inboxHandlers :: InboxHandlerSpec
+      }
+  | GitSpec
+      { gitHandlers :: GitHandlerSpec
+      }
+  deriving (Eq, Show)
+    
+newtype GitHandlerSpec
+  = GitHandlerSpec {gitCommands :: Maybe [GitHandlerCommandSpec]}
+  deriving (Eq, Show)
 
+data GitHandlerCommandSpec =
+  GitHandlerCommandSpec
+    { gitCmdName    :: !Text
+    , gitCmdSpecCmd :: !Text
+    , gitCmdKey     :: !Text
+    } deriving (Eq, Show)
+    
 data InboxHandlerSpec =
   InboxHandlerSpec
     { commands :: Maybe [InboxHandlerCommandSpec]
@@ -92,11 +107,21 @@ instance FromJSON LocationSpec where
       "inbox" -> return $ InboxLoc $ InboxLocation location' (fromMaybe [] ignoredFiles')
       _ -> fail $ "Location type must be either 'git' or 'inbox', found '" <> T.unpack type' <> "'"
 
+
 instance FromJSON HandlerSpecs where
-  parseJSON (Y.Object v) =
-    HandlerSpecs <$>
-    v .: "inbox"
-  parseJSON _ = fail "error parsing handler specs"
+  parseJSON = Y.withObject "HandlerSpecs" $ \v -> do
+    inbox' <- v .:? "inbox"
+    git'   <- v .:? "git"
+    case inbox' of
+      Just val -> return $ InboxSpec val
+      Nothing -> case git' of
+                   Just gitVal -> return $ GitSpec gitVal
+                   Nothing -> fail "error parsing handler specs"    
+--instance FromJSON HandlerSpecs where
+--  parseJSON (Y.Object v) =
+--    HandlerSpecs <$>
+--    v .: "inbox"
+--  parseJSON _ = fail "error parsing handler specs"
 
 instance FromJSON InboxHandlerSpec where
   parseJSON (Y.Object v) =
@@ -105,6 +130,20 @@ instance FromJSON InboxHandlerSpec where
       v .:? "refile_dests"
   parseJSON _ = fail "error parsing inbox handler spec"
 
+instance FromJSON GitHandlerSpec where
+  parseJSON (Y.Object v) =
+    GitHandlerSpec <$>
+      v .:? "commands"
+  parseJSON _ = fail "error parsing git handler spec"
+  
+instance FromJSON GitHandlerCommandSpec where
+  parseJSON (Y.Object v) =
+    GitHandlerCommandSpec <$>
+      v .: "name" <*>
+      v .: "cmd"  <*>
+      v .: "key"
+  parseJSON _ = fail "error parsing git handler command"    
+      
 instance FromJSON InboxHandlerCommandSpec where
   parseJSON (Y.Object v) =
     InboxHandlerCommandSpec <$>
