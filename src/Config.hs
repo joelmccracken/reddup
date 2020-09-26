@@ -51,13 +51,17 @@ data InboxLocation = InboxLocation
     }
   deriving (Eq, Show)
 
+--data HandlerSpecs
+--  = InboxSpec
+--      { inboxHandlers :: InboxHandlerSpec
+--      }
+--  | GitSpec
+--      { gitHandlers :: GitHandlerSpec
+--      }
+--  deriving (Eq, Show)
 data HandlerSpecs
-  = InboxSpec
-      { inboxHandlers :: InboxHandlerSpec
-      }
-  | GitSpec
-      { gitHandlers :: GitHandlerSpec
-      }
+  = InboxSpec InboxHandlerSpec
+  | GitSpec GitHandlerSpec
   deriving (Eq, Show)
 
 newtype GitHandlerSpec
@@ -232,7 +236,12 @@ processConfig config =
     (ihcErrors, ihcSuccesses) = processInboxCommandHandlers inboxHandlerCommands' 
 
     inboxRefileDests' :: Maybe [InboxHandlerRefileDestSpec]
-    inboxRefileDests' = refileDests $ inboxHandlers $ handlers config
+    --inboxRefileDests' = refileDests $ inboxHandlers $ handlers config
+    inboxRefileDests' =
+      case handlers config of
+        InboxSpec handlers' -> refileDests handlers'
+        _                   -> Nothing
+    
     (refileErrors, refileDests') = processRefileDests inboxRefileDests'
 
     gitHandlerCommands' :: Maybe [GitHandlerCommandSpec]
