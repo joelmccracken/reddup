@@ -14,6 +14,9 @@ import qualified ShellUtil
 import qualified Data.Map.Strict as M
 import qualified Data.List as List
 import qualified Data.Bifunctor as BF
+import Debug.Trace (trace)
+--import Control.Monad (forM_)
+--import Control.Applicative (liftA2)
 
 data ProcessedConfig =
   ProcessedConfig
@@ -31,7 +34,7 @@ type RefileDests       = M.Map T.Text InboxHandlerRefileDestSpec
 data Config =
   Config
     { locations :: [LocationSpec]
-    , handlers :: HandlerSpecs
+    , handlers  :: HandlerSpecs
     } deriving (Eq, Show)
 
 data LocationSpec
@@ -59,9 +62,17 @@ data InboxLocation = InboxLocation
 --      { gitHandlers :: GitHandlerSpec
 --      }
 --  deriving (Eq, Show)
+
+--data HandlerSpecs
+--  = InboxSpec InboxHandlerSpec
+--  | GitSpec GitHandlerSpec
+--  deriving (Eq, Show)
+
 data HandlerSpecs
-  = InboxSpec InboxHandlerSpec
-  | GitSpec GitHandlerSpec
+  = HandlerSpecs
+  { handlerSpecInbox :: Maybe InboxHandlerSpec
+  , handlerSpecGit   :: Maybe GitHandlerSpec
+  }
   deriving (Eq, Show)
 
 newtype GitHandlerSpec
@@ -115,14 +126,19 @@ instance FromJSON LocationSpec where
 
 
 instance FromJSON HandlerSpecs where
-  parseJSON = Y.withObject "HandlerSpecs" $ \v -> do
-    inbox' <- v .:? "inbox"
-    git'   <- v .:? "git"
-    case inbox' of
-      Just val -> return $ InboxSpec val
-      Nothing -> case git' of
-                   Just gitVal -> return $ GitSpec gitVal
-                   Nothing -> fail "error parsing handler specs"
+  parseJSON (Y.Object v) = 
+    HandlerSpecs <$>
+      v .:? "inbox" <*>
+      v .:? "git"
+  parseJSON _ = fail "error parsing handler specs"    
+--  parseJSON = Y.withObject "HandlerSpecs" $ \v -> do
+--    inbox' <- v .:? "inbox"
+--    git'   <- v .:? "git"
+--    case inbox' of
+--      Just val -> return $ InboxSpec val
+--      Nothing -> case git' of
+--                   Just gitVal -> return $ GitSpec gitVal
+--                   Nothing -> fail "error parsing handler specs"
 
 instance FromJSON InboxHandlerSpec where
   parseJSON (Y.Object v) =
@@ -183,12 +199,14 @@ processGitCommandHandlers ::
 processGitCommandHandlers maybeCmdSpecs = 
   let
     cmdSpecs :: [GitHandlerCommandSpec]
-    cmdSpecs = fromMaybe [] maybeCmdSpecs
+    cmdSpecs = trace ("Maybe [GitHandlerCommandSpec]" ++ show maybeCmdSpecs)
+               fromMaybe [] maybeCmdSpecs
     
     hasRightNumChars spec = (List.length $ T.unpack $ (gitCmdKey spec) ) > 0
     
     (rightNumCharsCmds,
-         wrongNumCharsCmds) = List.partition hasRightNumChars cmdSpecs
+         wrongNumCharsCmds) = trace ("cmdSpecs size: " ++ show (Prelude.length cmdSpecs))
+                                    (List.partition hasRightNumChars cmdSpecs)
     
     errors =
       (ErrorGitCmdHandlerKeyWrongNumChars <$> wrongNumCharsCmds) 
@@ -207,7 +225,8 @@ processInboxCommandHandlers ::
 processInboxCommandHandlers maybeCmdSpecs =
   let
     cmdSpecs :: [InboxHandlerCommandSpec]
-    cmdSpecs = fromMaybe [] maybeCmdSpecs
+    cmdSpecs = trace ("Maybe [InboxHandlerCommandSpec]" ++ show maybeCmdSpecs)
+               fromMaybe [] maybeCmdSpecs
 
     hasRightNumChars spec = (List.length $ T.unpack $ (cmdKey spec) ) > 0
 
@@ -228,28 +247,19 @@ processConfig config =
   let
     inboxHandlerCommands' :: Maybe [InboxHandlerCommandSpec]
     --inboxHandlerCommands' = commands $ inboxHandlers $ handlers config
-    inboxHandlerCommands' = 
-      case handlers config of
-        InboxSpec handlers' -> commands handlers'
-        _                   -> Nothing
+    inboxHandlerCommands' = commands =<< handlerSpecInbox (handlers config)
     
     (ihcErrors, ihcSuccesses) = processInboxCommandHandlers inboxHandlerCommands' 
 
     inboxRefileDests' :: Maybe [InboxHandlerRefileDestSpec]
     --inboxRefileDests' = refileDests $ inboxHandlers $ handlers config
-    inboxRefileDests' =
-      case handlers config of
-        InboxSpec handlers' -> refileDests handlers'
-        _                   -> Nothing
-    
+    inboxRefileDests' = refileDests =<< handlerSpecInbox (handlers config)
+
     (refileErrors, refileDests') = processRefileDests inboxRefileDests'
 
     gitHandlerCommands' :: Maybe [GitHandlerCommandSpec]
     --gitHandlerCommands' = gitCommands $ gitHandlers $ handlers config
-    gitHandlerCommands' =
-      case handlers config of
-        GitSpec handlers' -> gitCommands handlers'
-        _                 -> Nothing  
+    gitHandlerCommands' = gitCommands =<< handlerSpecGit (handlers config)
     
     (ghcErrors, ghcSuccesses) = processGitCommandHandlers gitHandlerCommands'
     
@@ -265,6 +275,7 @@ processConfig config =
     if List.length allErrors > 0 then
       Left allErrors
     else
+      trace ("gitHandlerCommands length: " ++ show (Prelude.length (gitHandlerCommands newConfig)))
       Right newConfig
 
 moreThanOneChar :: String -> Bool

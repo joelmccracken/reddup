@@ -11,7 +11,7 @@ import qualified Trackable as Track
 import qualified Options as O
 import qualified Reddup  as R
 import Control.Monad.Reader
-import Debug.Trace
+import Debug.Trace (trace)
 
 extractConfig :: Either String C.Config -> Tu.Shell C.Config
 extractConfig eitherConfig =
