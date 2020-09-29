@@ -158,8 +158,6 @@ processGitUnpushed grt@(GitRepoTrackable dir _locSpec) branchShell = do
         run $ processGitInteractive grt
 
   liftIO $ do
-    putStrLn "target"
-    putStrLn $ show target
     putStrLn "Actions:"
     putStrLn "open a (s)hell"
     gitPushLabel branchName targetAndMerge
