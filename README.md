@@ -4,8 +4,9 @@ A program to help keep things tidy.
 
 [![asciicast](https://asciinema.org/a/355687.svg)](https://asciinema.org/a/355687)
 
-This should be considered alpha quality. If you have any questions, feel free to
-use issues or send an email.
+This should be considered alpha quality. It works for me with few bugs, but it
+still has very few users, so you may encounter problems.
+If you have any questions, feel free to use issues or send an email.
 
 ## Overview
 
